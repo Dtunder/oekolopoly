@@ -112,6 +112,11 @@ def run_sovereign() -> None:
     gc.collect()
     
     try:
+        torch, RecurrentPPO = lazy_load_torch()
+        if not RecurrentPPO:
+            logger.error("AI could not be initialized.")
+            return
+
         model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
         model = RecurrentPPO.load(model_path, device='cpu')
         base_env = gym.make("Oekolopoly-v2")
