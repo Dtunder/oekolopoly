@@ -25,8 +25,14 @@ from sb3_contrib import RecurrentPPO
 
 class SovereignGuardian:
     """The analytical core of the Sovereign Champion."""
-    def __init__(self, env: gym.Env):
+    def __init__(self, env: gym.Env, edu_max=29, p_target=13, qol_burn=18, pop_burn=15, env_burn_low=12, env_burn_high=20):
         self.env = env
+        self.edu_max = edu_max
+        self.p_target = p_target
+        self.qol_burn = qol_burn
+        self.pop_burn = pop_burn
+        self.env_burn_low = env_burn_low
+        self.env_burn_high = env_burn_high
 
     def get_final_action(self, raw_action: Any, avail: int) -> Tuple[np.ndarray, List[str]]:
         """Applies V290 Alchemist logic with reasoning logs."""
@@ -35,14 +41,14 @@ class SovereignGuardian:
         reasons = []
         
         # 1. CORE INVESTMENTS
-        if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2]))
+        if V[2] < self.edu_max and avail > 0:
+            d = min(avail, self.edu_max - int(V[2]))
             dist[2] = int(d)
             avail -= dist[2]
             reasons.append(f"Edu+{dist[2]}")
             
         # 2. SURVIVAL TARGETS & BLACK SKY
-        p_target = 13
+        p_target = self.p_target
         if V[5] <= 9 or V[7] < -5:
             p_target = 22 # Force high production (Black Sky Shield)
             reasons.append("BLACK SKY ACTIVE")
@@ -61,17 +67,17 @@ class SovereignGuardian:
             reasons.append("Alchemist Burn")
             while avail + int(V[9]) > 28:
                 changed = False
-                if int(V[2]) + dist[2] < 29:
+                if int(V[2]) + dist[2] < self.edu_max:
                     dist[2] += 1; avail -= 1; changed = True
-                elif int(V[3]) + dist[3] < 18:
+                elif int(V[3]) + dist[3] < self.qol_burn:
                     dist[3] += 1; avail -= 1; changed = True
-                elif int(V[4]) + dist[4] < 15:
+                elif int(V[4]) + dist[4] < self.pop_burn:
                     dist[4] += 1; avail -= 1; changed = True
-                elif V[5] < 12:
+                elif V[5] < self.env_burn_low:
                     if int(V[1]) + dist[1] < 18:
                         dist[1] += 1; avail -= 1; changed = True
                     else: break
-                elif V[5] > 20:
+                elif V[5] > self.env_burn_high:
                     if int(V[0]) + dist[0] < 25:
                         dist[0] += 1; avail -= 1; changed = True
                     else: break
