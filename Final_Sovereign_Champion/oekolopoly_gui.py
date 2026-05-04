@@ -380,6 +380,7 @@ class Game:
         self.episode_starts = np.ones((1,), dtype=bool)
         self.current_action = [0, 0, 0, 0, 0, 0]
         self.all_actions = []
+        self.state_history = [self.env.unwrapped.V.copy()]
         self.action_font = pygame.font.SysFont('Times New Roman', 30)
         self.game_loop = True
         self.done = False
@@ -814,6 +815,7 @@ class Game:
             logger.info(f"Executing Move: {self.current_action}")
             self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
             self.all_actions.append(self.current_action)
+            self.state_history.append(self.env.unwrapped.V.copy())
             self.reset_current_action()
             if self.done:
                 logger.info(f"Simulation Terminated. Reason: {info.get('done_reason')}")
@@ -831,8 +833,25 @@ class Game:
             self.console_label.text = msg
             logger.info(msg)
             self.save_victory_report(grade, penalty)
+            self.generate_game_summary()
         else:
             self.console_label.text = f"GAME OVER: {info.get('done_reason')}"
+            # Also generate summary if significant progress was made (e.g. > 5 years)
+            if year > 5:
+                self.generate_game_summary()
+
+    def generate_game_summary(self):
+        """Generates an SVG summary of the game state history."""
+        try:
+            from summary_generator import SummaryGenerator
+            generator = SummaryGenerator(self.state_history, self.dtl)
+            reports_dir = os.path.join(ROOT_DIR, "reports")
+            year = int(self.env.unwrapped.V[8])
+            output_path = os.path.join(reports_dir, f"summary_year_{year}.svg")
+            generator.generate_svg(output_path)
+            logger.info(f"Game summary SVG saved to {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to generate game summary: {e}")
 
     def calculate_harmony_score(self) -> Tuple[str, float]:
         """Calculates the final harmony grade based on V106 standards."""
@@ -880,6 +899,7 @@ class Game:
         self.env = gym.make('Oekolopoly-v2')
         self.agent_obs, _ = self.env.reset()
         self.all_actions = []
+        self.state_history = [self.env.unwrapped.V.copy()]
         self.current_action = [0, 0, 0, 0, 0, 0]
         self.console_label.text = ""
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
