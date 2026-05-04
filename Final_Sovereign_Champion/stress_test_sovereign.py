@@ -2,18 +2,20 @@ import os
 import sys
 import numpy as np
 import gymnasium as gym
-import torch
-from sb3_contrib import RecurrentPPO
+# from sb3_contrib import RecurrentPPO # Moved to lazy loading
 
 # Paths
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 
-from run_champion import SovereignGuardian
+from run_champion import SovereignGuardian, lazy_load_torch
 
 def run_stress_test(num_episodes=50, noise_level=2):
     print(f"--- STARTING SOVEREIGN STRESS TEST ---")
     print(f"Noise Level: +/- {noise_level} units on initial state")
+    
+    torch, RecurrentPPO = lazy_load_torch()
+    if not RecurrentPPO: return
     
     model_path = os.path.join(ROOT, "sota_recurrent_champion")
     model = RecurrentPPO.load(model_path, device='cpu')
