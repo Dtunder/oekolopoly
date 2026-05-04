@@ -456,9 +456,9 @@ class OekoEnv(gym.Env):
         if used_points < 0 or used_points > self.V[self.POINTS]:
             self.done = True
             if used_points < 0:
-                done_reason = "Tried to use negative amount of action points. "
+                done_reason = self.etl["NegAP"]
             else:   # i.e. if used_points > self.V[self.POINTS]:
-                done_reason = "Tried to exceed available amount of action points. "
+                done_reason = self.etl["ExceedAP"]
             # done_reason += f"Tried to use {used_points} action points, but only between 0 and {self.V[self.POINTS]} are available"
             done_reason_detail = f"{used_points} not in (0, ..., {self.V[self.POINTS]})"
             return self.obs, 0, self.done, truncated, {'balance (always)': self.balance_always,
@@ -469,19 +469,20 @@ class OekoEnv(gym.Env):
                                                        'done_reason': done_reason,
                                                        'done_reason_detail': done_reason_detail,
                                                        'valid_move': False,
-                                                       'invalid_move_info': "Invalid number of action points"}
+                                                       'invalid_move_info': self.etl["InvalidAP"]}
         assert 0 <= used_points <= self.V[self.POINTS], \
             f"Action takes too many points: action={action} POINTS={self.V[self.POINTS]})"
 
         for i in range(5):
             if self.V[i] + action[i] not in range(self.Vmin[i], self.Vmax[i] + 1):
                 self.done = True
+                v_name = self.dtl[self.V_NAMES[i].replace(" ", "")] if self.V_NAMES[i].replace(" ", "") in self.dtl else self.V_NAMES[i]
                 if self.V[i] + action[i] < self.Vmin[i]:
-                    done_reason = f"Distribution of action points pushes {self.V_NAMES[i]} below limit. "
+                    done_reason = self.etl["PushBelow"].format(name=v_name)
                 else:   # i.e. if self.V[i] + action[i] > self.Vmax[i]:
-                    done_reason = f"Distribution of action points pushes {self.V_NAMES[i]} above limit. "
+                    done_reason = self.etl["PushAbove"].format(name=v_name)
                 done_reason_detail = f"{self.V[i] + action[i]} action points are not in ({self.Vmin[i]}, ..., {self.Vmax[i]})"
-                inval_m_info = f"Invalid number of action points assigned to {self.V_NAMES[i]}."
+                inval_m_info = self.etl["InvalidAPRegion"].format(name=v_name)
                 return self.obs, 0, self.done, truncated, {'balance (always)': self.balance_always,
                                                            'balance_numerator (always)': self.balance_numerator_always,
                                                            'balance': self.balance,

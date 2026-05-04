@@ -2,7 +2,6 @@ import os
 import sys
 import numpy as np
 import gymnasium as gym
-import torch
 import copy
 from sb3_contrib import RecurrentPPO
 

@@ -90,6 +90,26 @@ def dict_translate(language):
                "RoundsSurvived": "Runden überlebt",
                "RoundNo": "Runde Nr.",
                "AttentionGameOver": "Vorsicht! `Game over` mit aktuellem Zug",
+               "SovereignAI": "Souveräne KI",
+               "ReasoningLog": "KI-Begründung wird hier erscheinen...",
+               "Victory": "SIEG!",
+               "VictoryReportSaved": "Siegbericht gespeichert in",
+               "VictoryReportHeader": "--- SOUVERÄNER CHAMPION SIEGBERICHT ---",
+               "SovereignReasoning": "Begründung",
+               "SovereignPrediction": "Vorhersage",
+               "YearAbbr": "J",
+               "EnvAbbr": "Umw",
+               "QoLAbbr": "LQ",
+               "ReasonCore": "Kern: Bildungsausbeute (+{d}).",
+               "ReasonTarget": "Adaptiv: Ziel Produktion {target}.",
+               "ReasonBurnEdu": "Punkteverbrennung: Bildung.",
+               "ReasonBurnQoL": "Punkteverbrennung: Lebensqualität erhöhen.",
+               "ReasonBurnPop": "Punkteverbrennung: Bevölkerung.",
+               "ReasonBurnProdEnv": "Punkteverbrennung: Erhöhe Produktion für saubere Umwelt.",
+               "ReasonBurnCleanEnv": "Punkteverbrennung: Umweltreinigung.",
+               "ReasonBurnSabotage": "Punkteverbrennung: Sabotiere Produktion (Sicherer Abfluss).",
+               "ReasonPopControl": "Bev: Geburtenkontrolle.",
+               "ReasonPopStimulate": "Bev: Wachstum stimulieren.",
                }
         return dtl
     if language == "en":
@@ -173,6 +193,26 @@ def dict_translate(language):
                "RoundsSurvived": "rounds survived",
                "RoundNo": "Round #",
                "AttentionGameOver": "Attention! `Game over` with actual move",
+               "SovereignAI": "Sovereign AI",
+               "ReasoningLog": "Sovereign AI Reasoning will appear here...",
+               "Victory": "VICTORY!",
+               "VictoryReportSaved": "Victory report saved to",
+               "VictoryReportHeader": "--- SOVEREIGN CHAMPION VICTORY REPORT ---",
+               "SovereignReasoning": "Reasoning",
+               "SovereignPrediction": "Prediction",
+               "YearAbbr": "Y",
+               "EnvAbbr": "Env",
+               "QoLAbbr": "QoL",
+               "ReasonCore": "Core: Education yield (+{d}).",
+               "ReasonTarget": "Adaptive: Target Prod {target}.",
+               "ReasonBurnEdu": "Burn: Education.",
+               "ReasonBurnQoL": "Burn: Raising QoL.",
+               "ReasonBurnPop": "Burn: Population.",
+               "ReasonBurnProdEnv": "Burn: Increasing Prod to balance clean Env.",
+               "ReasonBurnCleanEnv": "Burn: Cleaning Env.",
+               "ReasonBurnSabotage": "Burn: Sabotaging Prod (Safe sink).",
+               "ReasonPopControl": "Pop: Control birth.",
+               "ReasonPopStimulate": "Pop: Stimulate growth.",
                }
         return dtl
     raise RuntimeError(f"[dict_translate] language = {language} is not supported!")
@@ -190,6 +230,13 @@ def env_translate(language):
                "NumAPointsTooLow": "Zu wenig Aktionspunkte",
                "NumAPointsTooHigh": "Zu viele Aktionspunkte",
                "MaxNumRoundsReached": "Maximalzahl an Runden erreicht.",
+               "NegAP": "Versuchte Verwendung einer negativen Menge an Aktionspunkten.",
+               "ExceedAP": "Versuchte Überschreitung der verfügbaren Aktionspunkte.",
+               "InvalidAP": "Ungültige Anzahl von Aktionspunkten.",
+               "PushBelow": "Verteilung der Aktionspunkte drückt {name} unter das Limit.",
+               "PushAbove": "Verteilung der Aktionspunkte drückt {name} über das Limit.",
+               "InvalidAPRegion": "Ungültige Anzahl von Aktionspunkten für {name}.",
+               "GameOver": "SPIEL VORBEI",
                }
         return etl
     if language == "en":
@@ -199,6 +246,13 @@ def env_translate(language):
                "NumAPointsTooLow": "Too few action points",
                "NumAPointsTooHigh": "Too many action points",
                "MaxNumRoundsReached": "Maximum number of rounds reached.",
+               "NegAP": "Tried to use negative amount of action points.",
+               "ExceedAP": "Tried to exceed available amount of action points.",
+               "InvalidAP": "Invalid number of action points",
+               "PushBelow": "Distribution of action points pushes {name} below limit.",
+               "PushAbove": "Distribution of action points pushes {name} above limit.",
+               "InvalidAPRegion": "Invalid number of action points assigned to {name}.",
+               "GameOver": "GAME OVER",
                }
         return etl
     raise RuntimeError(f"[env_translate] language = {language} is not supported!")
