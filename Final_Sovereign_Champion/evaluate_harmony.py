@@ -9,6 +9,12 @@ from sb3_contrib import RecurrentPPO
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 
+import torch.nn as nn
+original_lstm_init = nn.LSTM.__init__
+def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
+    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
+nn.LSTM.__init__ = patched_lstm_init
+
 from run_champion import SovereignGuardian
 
 def calculate_harmony():
@@ -26,7 +32,7 @@ def calculate_harmony():
     history = []
     for _ in range(35):
         action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-        final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+        final_action, _ = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
         obs, reward, terminated, truncated, info = base_env.step(final_action)
         episode_starts = np.zeros((1,), dtype=bool)
         history.append(copy.deepcopy(base_env.unwrapped.V))

@@ -22,13 +22,13 @@ def lazy_load_torch():
         import torch
         import torch.nn as nn
         from sb3_contrib import RecurrentPPO
-        
+
         # WATERPROOF MONKEY PATCH
         original_lstm_init = nn.LSTM.__init__
         def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
             return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
         nn.LSTM.__init__ = patched_lstm_init
-        
+
         torch.set_num_threads(1)
         torch.set_grad_enabled(False)
         return torch, RecurrentPPO
@@ -97,7 +97,7 @@ class SovereignGuardian:
         final = [int(dist[0]), int(dist[1] + 28), int(dist[2]), int(dist[3]), int(dist[4]), 5]
         if V[6] > 32: final[5] = 1
         elif V[6] < 18: final[5] = 10
-        
+
         return np.clip(final, 0, 56), reasons
 
 def run_sovereign() -> None:

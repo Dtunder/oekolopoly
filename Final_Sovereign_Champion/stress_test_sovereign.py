@@ -35,7 +35,7 @@ def run_stress_test(num_episodes=50, noise_level=2):
             year = 0
             for _ in range(40):
                 action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-                final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+                final_action, _ = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
                 obs, reward, terminated, truncated, info = base_env.step(final_action)
                 episode_starts = np.zeros((1,), dtype=bool)
                 year = base_env.unwrapped.V[8]

@@ -1,7 +1,7 @@
 import os
 import sys
 import gc
-from typing import Any
+from typing import Any, Tuple, List
 import numpy as np
 import gymnasium as gym
 
@@ -28,53 +28,64 @@ class SovereignGuardian:
     def __init__(self, env: gym.Env):
         self.env = env
 
-    def get_final_action(self, raw_action: Any, avail: int) -> np.ndarray:
-        """Applies V106 Alchemist logic to ensure 30-year survival."""
+    def get_final_action(self, raw_action: Any, avail: int) -> Tuple[np.ndarray, List[str]]:
+        """Applies V290 Alchemist logic with reasoning logs."""
         V = self.env.unwrapped.V
         dist = np.zeros(5, dtype=int)
+        reasons = []
         
         # 1. CORE INVESTMENTS
         if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
+            d = min(avail, 29 - int(V[2]))
+            dist[2] = int(d)
+            avail -= dist[2]
+            reasons.append(f"Edu+{dist[2]}")
             
         # 2. SURVIVAL TARGETS & BLACK SKY
         p_target = 13
-        # Black Sky Strategy: If environment is critically low or Politics are unstable
         if V[5] <= 9 or V[7] < -5:
-            p_target = 22 # Force high production
+            p_target = 22 # Force high production (Black Sky Shield)
+            reasons.append("BLACK SKY ACTIVE")
+        else:
+            reasons.append("Zen Stability")
 
         p_dist = p_target - int(V[1])
         if avail > 0:
             d = min(avail, abs(p_dist)) if (V[5] <= 9 or V[7] < -5) else min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
+            dist[1] = -int(d) if p_dist < 0 else int(d)
+            avail -= abs(dist[1])
+            if dist[1] != 0: reasons.append(f"Prod {'+' if dist[1]>0 else ''}{dist[1]}")
             
         # 3. ALCHEMIST BURN (Safety valve for Action Points)
-        while avail + int(V[9]) > 28:
-            changed = False
-            if int(V[2]) + dist[2] < 29:
-                dist[2] += 1; avail -= 1; changed = True
-            elif int(V[3]) + dist[3] < 18:
-                dist[3] += 1; avail -= 1; changed = True
-            elif int(V[4]) + dist[4] < 15:
-                dist[4] += 1; avail -= 1; changed = True
-            elif V[5] < 12:
-                if int(V[1]) + dist[1] < 18:
-                    dist[1] += 1; avail -= 1; changed = True
-                else: break
-            elif V[5] > 20:
-                if int(V[0]) + dist[0] < 25:
-                    dist[0] += 1; avail -= 1; changed = True
-                else: break
-            else:
-                if int(V[1]) + dist[1] > 5:
-                    dist[1] -= 1; avail -= 1; changed = True
-                else: break
-            if avail + int(V[9]) <= 28: break
+        if avail + int(V[9]) > 28:
+            reasons.append("Alchemist Burn")
+            while avail + int(V[9]) > 28:
+                changed = False
+                if int(V[2]) + dist[2] < 29:
+                    dist[2] += 1; avail -= 1; changed = True
+                elif int(V[3]) + dist[3] < 18:
+                    dist[3] += 1; avail -= 1; changed = True
+                elif int(V[4]) + dist[4] < 15:
+                    dist[4] += 1; avail -= 1; changed = True
+                elif V[5] < 12:
+                    if int(V[1]) + dist[1] < 18:
+                        dist[1] += 1; avail -= 1; changed = True
+                    else: break
+                elif V[5] > 20:
+                    if int(V[0]) + dist[0] < 25:
+                        dist[0] += 1; avail -= 1; changed = True
+                    else: break
+                else:
+                    if int(V[1]) + dist[1] > 5:
+                        dist[1] -= 1; avail -= 1; changed = True
+                    else: break
+                if not changed or avail + int(V[9]) <= 28: break
 
         final = [int(dist[0]), int(dist[1] + 28), int(dist[2]), int(dist[3]), int(dist[4]), 5]
         if V[6] > 32: final[5] = 1
         elif V[6] < 18: final[5] = 10
-        return np.clip(final, 0, 56)
+
+        return np.clip(final, 0, 56), reasons
 
 
 def run_benchmark(num_episodes=100):
@@ -93,7 +104,7 @@ def run_benchmark(num_episodes=100):
             year = 0
             for _ in range(40): # Buffer for 30 years
                 action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-                final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+                final_action, _ = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
                 obs, reward, terminated, truncated, info = base_env.step(final_action)
                 episode_starts = np.zeros((1,), dtype=bool)
                 year = base_env.unwrapped.V[8]

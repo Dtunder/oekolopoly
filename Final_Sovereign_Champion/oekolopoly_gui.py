@@ -36,25 +36,25 @@ class GameStateManager:
                 import torch
                 import torch.nn as nn
                 from sb3_contrib import RecurrentPPO
-                
+
                 # WATERPROOF MONKEY PATCH for LSTM
                 original_lstm_init = nn.LSTM.__init__
                 def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
                     return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
                 nn.LSTM.__init__ = patched_lstm_init
-                
+
                 torch.set_num_threads(1)
                 torch.set_grad_enabled(False)
-                
+
                 model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion")
                 self.agent = RecurrentPPO.load(model_path, device='cpu')
                 self.episode_starts = np.ones((1,), dtype=bool)
             except Exception as e:
                 logger.warning(f"AI Model could not be loaded: {e}. Falling back to Heuristic Zen Logic.")
                 self.use_ai = False
-                
+
         self.guardian = SovereignGuardian(self.env)
-        
+
         # State tracking
         self.done = False
         self.year = 0
@@ -66,7 +66,7 @@ class GameStateManager:
         
         V = self.env.unwrapped.V
         avail = int(V[9])
-        
+
         if self.use_ai and self.agent:
             # Full Hybrid mode
             action, self.lstm_states = self.agent.predict(self.obs, state=self.lstm_states, episode_start=self.episode_starts, deterministic=True)
@@ -75,9 +75,9 @@ class GameStateManager:
         else:
             # Pure Heuristic Zen Logic (V290)
             final_action, reasons = self.guardian.get_final_action(None, avail)
-            
+
         self.reasoning = ", ".join(reasons) if reasons else "Stability maintained."
-            
+
         self.obs, reward, terminated, truncated, info = self.env.step(final_action)
         self.year = self.env.unwrapped.V[8]
         self.state_history.append(self.env.unwrapped.V.copy())
@@ -85,7 +85,7 @@ class GameStateManager:
         if terminated or truncated:
              self.done = True
              self.reasoning = f"Simulation ended: {info.get('done_reason')}"
-             
+
              # Generate Summary
              try:
                  generator = SummaryGenerator(self.state_history, dict_translate.get("en", {}))
@@ -170,12 +170,12 @@ class ModernGUI:
              tint = (255, 0, 0, 50) if V[8] < 30 else (0, 255, 0, 50)
              overlay.fill(tint)
              self.screen.blit(overlay, (0,0))
-             
+
              status_text = "SUCCESS (30 Years Reached)" if V[8] >= 30 else f"TERMINATED: {self.state.reasoning}"
              img = self.font.render(status_text, True, (255, 255, 255))
              rect = img.get_rect(center=(512, 384))
              self.screen.blit(img, rect)
-             
+
              if V[8] >= 30:
                  sub_text = "Report generated in /reports folder."
                  img2 = self.font.render(sub_text, True, (200, 200, 200))
