@@ -90,17 +90,17 @@ class OekoEnv(gym.Env):
              0,  # 7 Politics
              0,  # 8 Round
              8,  # 9 Points
-        ])
+        ], dtype=np.int32)
 
         #                      0   1   2   3   4   5   6    7   8   9
         #                      S  Pr  Ed  Q   PG  En  Pop  Pol  R  AP
-        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0])
-        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36])
+        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0], dtype=np.int32)
+        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36], dtype=np.int32)
 
         #                      0   1   2   3   4   5
         #                      S  Pr  Ed   Q  PG  SC
-        self.Amin = np.array([ 0,-28,  0,  0,  0, -5])
-        self.Amax = np.array([28, 28, 28, 28, 28,  5])
+        self.Amin = np.array([ 0,-28,  0,  0,  0, -5], dtype=np.int32)
+        self.Amax = np.array([28, 28, 28, 28, 28,  5], dtype=np.int32)
 
         self.action_space = spaces.MultiDiscrete([
             29,  # 0 Sanitation
@@ -596,11 +596,11 @@ class OekoEnv(gym.Env):
 
     def reset(self, options=None, seed=None):
         if options is not None and "v" in options:
-            self.V = np.array(options["v"])  # non-default initial values v
+            self.V = np.array(options["v"], dtype=np.int32)  # non-default initial values v
         else:
             self.V = self.get_initial_v()
 
-        self.curr_action = np.zeros(self.action_space.shape[0], 'int64')
+        self.curr_action = np.zeros(self.action_space.shape[0], dtype=np.int32)
         self.curr_result = self.V.copy()
 
         self.done = False
