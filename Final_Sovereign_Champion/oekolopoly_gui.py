@@ -9,6 +9,7 @@
 import argparse
 
 import os
+import sys
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
@@ -43,8 +44,14 @@ import oekolopoly.oekolopoly
 import pygame
 
 class SovereignGuardian:
-    def __init__(self, env):
+    def __init__(self, env, edu_max=29, p_target=13, qol_burn=18, pop_burn=15, env_burn_low=12, env_burn_high=20):
         self.env = env
+        self.edu_max = edu_max
+        self.p_target = p_target
+        self.qol_burn = qol_burn
+        self.pop_burn = pop_burn
+        self.env_burn_low = env_burn_low
+        self.env_burn_high = env_burn_high
 
     def get_final_action(self, avail):
         V = self.env.unwrapped.V
@@ -52,36 +59,35 @@ class SovereignGuardian:
         reasons = []
         
         # 1. CORE INVESTMENTS
-        if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
+        if V[2] < self.edu_max and avail > 0:
+            d = min(avail, self.edu_max - int(V[2])); dist[2] = int(d); avail -= dist[2]
             reasons.append(f"Core: Education yield (+{d}).")
             
         # 2. SURVIVAL TARGETS
-        p_target = 13
-        p_dist = p_target - int(V[1])
+        p_dist = self.p_target - int(V[1])
         if avail > 0:
             d = min(max(1, avail // 2), abs(p_dist))
             dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
-            reasons.append(f"Adaptive: Target Prod {p_target}.")
+            reasons.append(f"Adaptive: Target Prod {self.p_target}.")
             
         # 3. ALCHEMIST BURN (Avoid 35)
         while avail + int(V[9]) > 28:
             changed = False
-            if int(V[2]) + dist[2] < 29:
+            if int(V[2]) + dist[2] < self.edu_max:
                 dist[2] += 1; avail -= 1; changed = True
                 reasons.append("Burn: Education.")
-            elif int(V[3]) + dist[3] < 18:
+            elif int(V[3]) + dist[3] < self.qol_burn:
                 dist[3] += 1; avail -= 1; changed = True
                 reasons.append("Burn: Raising QoL.")
-            elif int(V[4]) + dist[4] < 15:
+            elif int(V[4]) + dist[4] < self.pop_burn:
                 dist[4] += 1; avail -= 1; changed = True
                 reasons.append("Burn: Population.")
-            elif V[5] < 12:
+            elif V[5] < self.env_burn_low:
                 if int(V[1]) + dist[1] < 18:
                     dist[1] += 1; avail -= 1; changed = True
                     reasons.append("Burn: Increasing Prod to balance clean Env.")
                 else: break
-            elif V[5] > 20:
+            elif V[5] > self.env_burn_high:
                 if int(V[0]) + dist[0] < 25:
                     dist[0] += 1; avail -= 1; changed = True
                     reasons.append("Burn: Cleaning Env.")
@@ -540,6 +546,10 @@ class Game:
         self.sovereign_reasoning_label = Label(Vector2(600, 630), Vector2(1000, 30), camera, "Sovereign AI Reasoning will appear here...", 18, color_light_blue)
         self.prediction_label = Label(Vector2(600, 670), Vector2(1000, 30), camera, "", 16, color_yellow)
 
+        self.state_history = [self.env.unwrapped.V.copy()]
+        # Draw live dashboard on top center
+        self.live_graph = LiveGraph(Vector2(10, 10), Vector2(400, 200), camera)
+
     def check_button_press(self):
         if not self.help_screen.active:
             if not self.done:
@@ -813,6 +823,8 @@ class Game:
         if info['valid_move']:
             logger.info(f"Executing Move: {self.current_action}")
             self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
+            self.state_history.append(self.env.unwrapped.V.copy())
+            self.live_graph.update_data(self.state_history)
             self.all_actions.append(self.current_action)
             self.reset_current_action()
             if self.done:
@@ -889,6 +901,8 @@ class Game:
         # self.preview_mode = False
         self.predict_usages = self.max_predict_usages
         self.predict_used = False
+        self.state_history = [self.env.unwrapped.V.copy()]
+        self.live_graph.update_data(self.state_history)
         self.lstm_states = None
         self.episode_starts = np.ones((1,), dtype=bool)
         self.toggle_game_features()
@@ -1078,6 +1092,80 @@ class Diagram(pygame.sprite.Sprite):
             font = pygame.font.SysFont('Times New Roman', int(50 / 1920 * pygame.display.get_window_size()[0]))
             self.image.blit(font.render("?", True, color_black), (5, 115 / 1920 * pygame.display.get_window_size()[0]))
             pygame.draw.rect(self.image, color_black, pygame.Rect((0, 0), self.size), 2)
+
+
+class LiveGraph(pygame.sprite.Sprite):
+    def __init__(self, pos, size, camera):
+        super().__init__(camera)
+        self.camera = camera
+        self.base_size = size
+        # Scale according to window size
+        self.size = Vector2(size.x / 1920 * pygame.display.get_window_size()[0],
+                            size.y / 1080 * pygame.display.get_window_size()[1])
+        self.image = pygame.Surface(self.size)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (
+            pos.x / 1920 * pygame.display.get_window_size()[0],
+            pos.y / 1080 * pygame.display.get_window_size()[1]
+        )
+        self.state_history = []
+        self.font = pygame.font.SysFont('Arial', int(14 / 1920 * pygame.display.get_window_size()[0]))
+        self.visible = True
+        self.draw()
+
+    def update_data(self, state_history):
+        self.state_history = state_history
+        self.draw()
+
+    def update(self, *args, **kwargs):
+        if self.visible:
+            pass # Drawing is triggered by data updates
+        else:
+            self.image = pygame.Surface(Vector2(0, 0))
+
+    def draw(self):
+        self.image.fill(color_white)
+        pygame.draw.rect(self.image, color_yellow, pygame.Rect(0, 0, self.size.x, self.size.y), 2)
+
+        # Title and Legend
+        self.image.blit(self.font.render("Live Dashboard: Edu (Blue), QoL (Green), Env (Red)", True, color_black), (10, 5))
+
+        if not self.state_history or len(self.state_history) < 2:
+            return
+
+        # Mapping: Edu -> V[2], QoL -> V[3], Env -> V[5]
+        max_val = 35 # Typical maximum value to display
+        min_val = 0
+
+        # Dimensions for drawing the graph
+        padding = 30
+        graph_width = self.size.x - 2 * padding
+        graph_height = self.size.y - 2 * padding
+
+        num_points = max(30, len(self.state_history)) # Scale x-axis for 30 years or more
+
+        def get_pos(i, val):
+            x = padding + (i / num_points) * graph_width
+            y = self.size.y - padding - ((val - min_val) / (max_val - min_val)) * graph_height
+            return (x, y)
+
+        edu_pts = []
+        qol_pts = []
+        env_pts = []
+
+        for i, V in enumerate(self.state_history):
+            edu_pts.append(get_pos(i, V[2]))
+            qol_pts.append(get_pos(i, V[3]))
+            env_pts.append(get_pos(i, V[5]))
+
+        if len(edu_pts) >= 2:
+            pygame.draw.lines(self.image, color_blue, False, edu_pts, 2)
+            pygame.draw.lines(self.image, color_green, False, qol_pts, 2)
+            pygame.draw.lines(self.image, color_red, False, env_pts, 2)
+
+        # Draw axes
+        pygame.draw.line(self.image, color_black, (padding, self.size.y - padding), (self.size.x - padding, self.size.y - padding), 1)
+        pygame.draw.line(self.image, color_black, (padding, padding), (padding, self.size.y - padding), 1)
 
 
 class ActionInput:
