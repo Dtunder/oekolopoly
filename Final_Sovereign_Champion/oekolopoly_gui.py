@@ -45,6 +45,7 @@ import pygame
 class SovereignGuardian:
     def __init__(self, env):
         self.env = env
+        self.dtl = env.unwrapped.dtl
 
     def get_final_action(self, avail):
         V = self.env.unwrapped.V
@@ -54,7 +55,7 @@ class SovereignGuardian:
         # 1. CORE INVESTMENTS
         if V[2] < 29 and avail > 0:
             d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
-            reasons.append(f"Core: Education yield (+{d}).")
+            reasons.append(self.dtl["ReasonCore"].format(d=d))
             
         # 2. SURVIVAL TARGETS
         p_target = 13
@@ -62,39 +63,39 @@ class SovereignGuardian:
         if avail > 0:
             d = min(max(1, avail // 2), abs(p_dist))
             dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
-            reasons.append(f"Adaptive: Target Prod {p_target}.")
+            reasons.append(self.dtl["ReasonTarget"].format(target=p_target))
             
         # 3. ALCHEMIST BURN (Avoid 35)
         while avail + int(V[9]) > 28:
             changed = False
             if int(V[2]) + dist[2] < 29:
                 dist[2] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Education.")
+                reasons.append(self.dtl["ReasonBurnEdu"])
             elif int(V[3]) + dist[3] < 18:
                 dist[3] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Raising QoL.")
+                reasons.append(self.dtl["ReasonBurnQoL"])
             elif int(V[4]) + dist[4] < 15:
                 dist[4] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Population.")
+                reasons.append(self.dtl["ReasonBurnPop"])
             elif V[5] < 12:
                 if int(V[1]) + dist[1] < 18:
                     dist[1] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Increasing Prod to balance clean Env.")
+                    reasons.append(self.dtl["ReasonBurnProdEnv"])
                 else: break
             elif V[5] > 20:
                 if int(V[0]) + dist[0] < 25:
                     dist[0] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Cleaning Env.")
+                    reasons.append(self.dtl["ReasonBurnCleanEnv"])
             else:
                 if int(V[1]) + dist[1] > 5:
                     dist[1] -= 1; avail -= 1; changed = True
-                    reasons.append("Burn: Sabotaging Prod (Safe sink).")
+                    reasons.append(self.dtl["ReasonBurnSabotage"])
                 else: break
             if avail + int(V[9]) <= 28: break
 
         final = [int(dist[0]), int(dist[1]), int(dist[2]), int(dist[3]), int(dist[4]), 0]
-        if V[6] > 32: final[5] = -4; reasons.append("Pop: Control birth.")
-        elif V[6] < 18: final[5] = 5; reasons.append("Pop: Stimulate growth.")
+        if V[6] > 32: final[5] = -4; reasons.append(self.dtl["ReasonPopControl"])
+        elif V[6] < 18: final[5] = 5; reasons.append(self.dtl["ReasonPopStimulate"])
         return final, " | ".join(reasons)
 
     def predict_future(self, start_action, steps=5):
@@ -424,7 +425,7 @@ class Game:
         self.preview_button = Button(Vector2(600, 350), Vector2(210, 40), color_green, camera, dtl["PreviewMode"])
         self.game_instructions_button = Button(Vector2(20, 90), Vector2(240, 40), color_yellow, camera,
                                                dtl["GameInstructions"])
-        self.sovereign_button = Button(Vector2(600, 290), Vector2(190, 40), color_turky, camera, "Sovereign AI", 25)
+        self.sovereign_button = Button(Vector2(600, 290), Vector2(190, 40), color_turky, camera, dtl["SovereignAI"], 25)
         # self.feedback_button = Button(Vector2(20, 145), Vector2(145, 40), color_yellow, camera, "Feedback?")
         self.game_history_button = Button(Vector2(20, 145), Vector2(190, 40), color_yellow, camera, dtl["GameHistory"])
         self.help_button = Button(Vector2(20, 200), Vector2(160, 40), color_yellow, camera, dtl["Help"])  # , 40)
@@ -537,7 +538,7 @@ class Game:
         self.help_screen.active = True
 
         self.toggle_game_features()
-        self.sovereign_reasoning_label = Label(Vector2(600, 630), Vector2(1000, 30), camera, "Sovereign AI Reasoning will appear here...", 18, color_light_blue)
+        self.sovereign_reasoning_label = Label(Vector2(600, 630), Vector2(1000, 30), camera, dtl["ReasoningLog"], 18, color_light_blue)
         self.prediction_label = Label(Vector2(600, 670), Vector2(1000, 30), camera, "", 16, color_yellow)
 
     def check_button_press(self):
@@ -722,13 +723,13 @@ class Game:
         for i in range(5):
             self.available_actionpoints -= abs(a_for_env[i])
         self.special_action_points = 5 - abs(self.current_action[5])
-        self.sovereign_reasoning_label.text = f"{self.dtl['Reasoning']}: {reason}"
+        self.sovereign_reasoning_label.text = f"{self.dtl['SovereignReasoning']}: {reason}"
         
         # Predictive Analytics
         trajectory = guardian.predict_future(a_for_env, steps=5)
-        pred_text = f"{self.dtl['Prediction']}: "
+        pred_text = f"{self.dtl['SovereignPrediction']}: "
         for i, v in enumerate(trajectory):
-            pred_text += f"Y{int(v[8])}:[Env:{int(v[5])}, QoL:{int(v[3])}] "
+            pred_text += f"{self.dtl['YearAbbr']}{int(v[8])}:[{self.dtl['EnvAbbr']}:{int(v[5])}, {self.dtl['QoLAbbr']}:{int(v[3])}] "
         self.prediction_label.text = pred_text
         self.run_simulation()
 
@@ -827,12 +828,12 @@ class Game:
         year = int(V[8])
         if year >= 30:
             grade, penalty = self.calculate_harmony_score()
-            msg = f"VICTORY! {self.dtl['HarmonyGrade']}: {grade} ({self.dtl['Penalty']}: {penalty:.1f})"
+            msg = f"{self.dtl['Victory']} {self.dtl['HarmonyGrade']}: {grade} ({self.dtl['Penalty']}: {penalty:.1f})"
             self.console_label.text = msg
             logger.info(msg)
             self.save_victory_report(grade, penalty)
         else:
-            self.console_label.text = f"GAME OVER: {info.get('done_reason')}"
+            self.console_label.text = f"{self.env.unwrapped.etl['GameOver']}: {info.get('done_reason')}"
 
     def calculate_harmony_score(self) -> Tuple[str, float]:
         """Calculates the final harmony grade based on V106 standards."""
@@ -859,11 +860,11 @@ class Game:
         V = self.env.unwrapped.V
         report_path = os.path.join(reports_dir, f"victory_{int(V[8])}_years_{grade}.txt")
         with open(report_path, "w") as f:
-            f.write("--- SOVEREIGN CHAMPION VICTORY REPORT ---\n")
+            f.write(f"{self.dtl['VictoryReportHeader']}\n")
             f.write(f"Grade: {grade}\nPenalty: {penalty:.2f}\n")
             f.write(f"Final States: {V.tolist()}\n")
             f.write(f"Total Steps: {len(self.all_actions)}\n")
-        logger.info(f"Victory report saved to {report_path}")
+        logger.info(f"{self.dtl['VictoryReportSaved']} {report_path}")
 
     def reset_current_action(self):
         self.current_action = [0, 0, 0, 0, 0, 0]
