@@ -5,24 +5,28 @@ import numpy as np
 
 class OekoBoxActionWrapper(gym.ActionWrapper):
     def distribute1(self, action, points):
-        action = list(action)
-        action_sum = sum(action)
+        action = np.array(action)
+        action_sum = np.sum(action)
 
-        if action_sum > 1:
-            for i in range(len(action)):
-                action[i] = action[i] / action_sum
+        if action_sum > 1e-9:
+            action = action / action_sum
+        else:
+            return [0] * len(action)
 
-        r = []
-        for n in action:
-            r.append(round(n * points))
-
-        while sum(r) > points:
-            max_index = r.index(max(r))
-            r[max_index] -= 1
-
-        assert sum(r) <= points
-
-        return r
+        # High-performance distribution using the "Largest Remainder Method"
+        scaled = action * points
+        r = np.floor(scaled).astype(int)
+        remainder = points - np.sum(r)
+        
+        if remainder > 0:
+            # Sort indices by their fractional parts in descending order
+            fractional_parts = scaled - r
+            indices = np.argsort(fractional_parts)[::-1]
+            # Distribute the remaining points to the elements with largest fractional parts
+            for i in range(int(remainder)):
+                r[indices[i]] += 1
+                
+        return r.tolist()
 
     def __init__(self, env):
         super().__init__(env)

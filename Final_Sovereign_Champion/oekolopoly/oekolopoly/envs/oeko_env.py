@@ -281,6 +281,7 @@ class OekoEnv(gym.Env):
         box1 = gb.get_box1(self.clip(self.SANITATION))
         if not done:
             self.V[self.ENVIRONMENT] += box1
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -290,6 +291,7 @@ class OekoEnv(gym.Env):
         if not done:
             box2 = gb.get_box2(self.clip(self.SANITATION))
             self.V[self.SANITATION] += box2
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.SANITATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.SANITATION] > 29 else self.etl[" too low. "]
@@ -299,6 +301,7 @@ class OekoEnv(gym.Env):
         if not done:
             box3 = gb.get_box3(self.clip(self.PRODUCTION))
             self.V[self.PRODUCTION] += box3
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.PRODUCTION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.PRODUCTION] > 29 else self.etl[" too low. "]
@@ -308,6 +311,7 @@ class OekoEnv(gym.Env):
         if not done:
             box4 = gb.get_box4(self.clip(self.PRODUCTION))
             self.V[self.ENVIRONMENT] += box4
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -317,6 +321,7 @@ class OekoEnv(gym.Env):
         if not done:
             box5 = gb.get_box5(self.clip(self.ENVIRONMENT))
             self.V[self.ENVIRONMENT] += box5
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -326,6 +331,7 @@ class OekoEnv(gym.Env):
         if not done:
             box6 = gb.get_box6(self.clip(self.ENVIRONMENT))
             self.V[self.QUALITY_OF_LIFE] += box6
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -335,6 +341,7 @@ class OekoEnv(gym.Env):
         if not done:
             box7 = gb.get_box7(self.clip(self.EDUCATION))
             self.V[self.EDUCATION] += box7
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.EDUCATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.EDUCATION] > 29 else self.etl[" too low. "]
@@ -344,6 +351,7 @@ class OekoEnv(gym.Env):
         if not done:
             box8 = gb.get_box8(self.clip(self.EDUCATION))
             self.V[self.QUALITY_OF_LIFE] += box8
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -358,6 +366,7 @@ class OekoEnv(gym.Env):
                 extra_points = 0
             box9 = gb.get_box9(self.V[self.EDUCATION], extra_points)
             self.V[self.POPULATION_GROWTH] += box9
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.POPULATION_GROWTH] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POPULATION_GROWTH] > 29 else self.etl[" too low. "]
@@ -367,6 +376,7 @@ class OekoEnv(gym.Env):
         if not done:
             box10 = gb.get_box10(self.clip(self.QUALITY_OF_LIFE))
             self.V[self.QUALITY_OF_LIFE] += box10
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -376,6 +386,7 @@ class OekoEnv(gym.Env):
         if not done:
             box11 = gb.get_box11(self.clip(self.QUALITY_OF_LIFE))
             self.V[self.POPULATION_GROWTH] += box11
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.POPULATION_GROWTH] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POPULATION_GROWTH] > 29 else self.etl[" too low. "]
@@ -385,6 +396,7 @@ class OekoEnv(gym.Env):
         if not done:
             box12 = gb.get_box12(self.clip(self.QUALITY_OF_LIFE))
             self.V[self.POLITICS] += box12
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.POLITICS] not in range(-10, 38):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POLITICS] > 37 else self.etl[" too low. "]
@@ -395,6 +407,7 @@ class OekoEnv(gym.Env):
             box13 = gb.get_box13(self.clip(self.POPULATION_GROWTH))
             boxW  = gb.get_boxW(self.clip(self.POPULATION))
             self.V[self.POPULATION] += box13 * boxW
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.POPULATION] not in range(1, 49):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POPULATION] > 48 else self.etl[" too low. "]
@@ -404,6 +417,7 @@ class OekoEnv(gym.Env):
         if not done:
             box14 = gb.get_box14(self.clip(self.POPULATION))
             self.V[self.QUALITY_OF_LIFE] += box14
+            self.V = np.clip(self.V, self.Vmin, self.Vmax)
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]

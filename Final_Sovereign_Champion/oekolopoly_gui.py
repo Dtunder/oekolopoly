@@ -5,20 +5,9 @@ import gymnasium as gym
 import pygame
 import logging
 from pygame.math import Vector2
-from sb3_contrib import RecurrentPPO
-import torch
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
-torch.set_num_threads(1)
-torch.set_grad_enabled(False)
-
-# WATERPROOF MONKEY PATCH for LSTM
-import torch.nn as nn
-original_lstm_init = nn.LSTM.__init__
-def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
-    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
-nn.LSTM.__init__ = patched_lstm_init
 
 # Configure Professional Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,42 +16,69 @@ logger = logging.getLogger("SovereignChampion")
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT_DIR)
 
-from oekolopoly.oekolopoly_gui.oeko_gui import OekoGui # We can reuse basic gui logic if we want, or do pure pygame
 from translator import dict_translate, dict_help_screens
 import oekolopoly.oekolopoly
 from run_champion import SovereignGuardian
 
 class GameStateManager:
-    def __init__(self, language="en"):
+    def __init__(self, language="en", use_ai=False):
         self.env = gym.make('Oekolopoly-v2', language=language)
         self.obs, _ = self.env.reset()
+        self.use_ai = use_ai
         
-        # Load AI
-        model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion")
-        if not os.path.exists(model_path + ".zip") and not os.path.exists(model_path):
-             logger.error(f"CRITICAL: Model file {model_path} not found!")
-             sys.exit(1)
-        self.agent = RecurrentPPO.load(model_path, device='cpu')
-        self.guardian = SovereignGuardian(self.env)
+        # Load AI only if requested (bypasses hangs on Py3.14)
+        self.agent = None
         self.lstm_states = None
-        self.episode_starts = np.ones((1,), dtype=bool)
+        if self.use_ai:
+            try:
+                import torch
+                import torch.nn as nn
+                from sb3_contrib import RecurrentPPO
+                
+                # WATERPROOF MONKEY PATCH for LSTM
+                original_lstm_init = nn.LSTM.__init__
+                def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
+                    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
+                nn.LSTM.__init__ = patched_lstm_init
+                
+                torch.set_num_threads(1)
+                torch.set_grad_enabled(False)
+                
+                model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion")
+                self.agent = RecurrentPPO.load(model_path, device='cpu')
+                self.episode_starts = np.ones((1,), dtype=bool)
+            except Exception as e:
+                logger.warning(f"AI Model could not be loaded: {e}. Falling back to Heuristic Zen Logic.")
+                self.use_ai = False
+                
+        self.guardian = SovereignGuardian(self.env)
         
         # State tracking
         self.done = False
         self.year = 0
-        self.total_ap = 8
-        self.ap_spent = [0]*6
+        self.reasoning = "Initializing Sovereign Champion..."
         
     def step_ai(self):
         if self.done: return
-        action, self.lstm_states = self.agent.predict(self.obs, state=self.lstm_states, episode_start=self.episode_starts, deterministic=True)
-        final_action = self.guardian.get_final_action(action, int(self.env.unwrapped.V[9]))
         
+        V = self.env.unwrapped.V
+        avail = int(V[9])
+        
+        if self.use_ai and self.agent:
+            # Full Hybrid mode
+            action, self.lstm_states = self.agent.predict(self.obs, state=self.lstm_states, episode_start=self.episode_starts, deterministic=True)
+            self.episode_starts = np.zeros((1,), dtype=bool)
+            final_action = self.guardian.get_final_action(action, avail)
+        else:
+            # Pure Heuristic Zen Logic (V290)
+            final_action = self.guardian.get_final_action(None, avail)
+            self.reasoning = "V290 Hardened Heuristic active."
+            
         self.obs, reward, terminated, truncated, info = self.env.step(final_action)
-        self.episode_starts = np.zeros((1,), dtype=bool)
         self.year = self.env.unwrapped.V[8]
         if terminated or truncated:
              self.done = True
+             self.reasoning = f"Simulation ended: {info.get('done_reason')}"
 
 class Button:
     def __init__(self, rect, color, text, font):
@@ -104,34 +120,44 @@ class ModernGUI:
                          self.state.step_ai()
 
     def render_frame(self):
-        self.screen.fill((30, 30, 30)) # Dark mode
+        self.screen.fill((15, 20, 28)) # Premium Deep Dark Mode
 
         # Draw UI
         self.btn_ai_step.draw(self.screen)
 
-        # Draw game state info
+        # Draw reasoning (V290 Brain)
+        reason_img = self.font.render(f"Log: {self.state.reasoning}", True, (100, 200, 255))
+        self.screen.blit(reason_img, (50, 680))
+
+        # Draw game state info with icons-like colors
         V = self.state.env.unwrapped.V
         texts = [
-            f"Year: {V[8]}",
-            f"AP: {V[9]}",
-            f"Sanitation: {V[0]}",
-            f"Production: {V[1]}",
-            f"Education: {V[2]}",
-            f"Quality of Life: {V[3]}",
-            f"Pop Growth: {V[4]}",
-            f"Environment: {V[5]}",
-            f"Population: {V[6]}"
+            (f"Year: {int(V[8])}", (255, 215, 0)),
+            (f"AP: {int(V[9])}", (50, 255, 50)),
+            ("-" * 20, (100, 100, 100)),
+            (f"Sanitation: {int(V[0])}", (200, 200, 200)),
+            (f"Production: {int(V[1])}", (255, 100, 100)),
+            (f"Education: {int(V[2])}", (100, 100, 255)),
+            (f"Quality of Life: {int(V[3])}", (255, 255, 100)),
+            (f"Pop Growth: {int(V[4])}", (255, 150, 50)),
+            (f"Environment: {int(V[5])}", (100, 255, 100)),
+            (f"Population: {int(V[6])}", (200, 200, 200)),
+            (f"Politics: {int(V[7])}", (255, 50, 50))
         ]
 
         y_offset = 120
-        for t in texts:
-            img = self.font.render(t, True, (200, 200, 200))
+        for t, color in texts:
+            img = self.font.render(t, True, color)
             self.screen.blit(img, (50, y_offset))
-            y_offset += 30
+            y_offset += 35
 
         if self.state.done:
-             img = self.font.render("GAME OVER", True, (255, 100, 100))
-             self.screen.blit(img, (300, 300))
+             overlay = pygame.Surface((1024, 768), pygame.SRCALPHA)
+             overlay.fill((255, 0, 0, 50)) # Red tint on game over
+             self.screen.blit(overlay, (0,0))
+             img = self.font.render(f"SIMULATION TERMINATED: {self.state.reasoning}", True, (255, 255, 255))
+             rect = img.get_rect(center=(512, 384))
+             self.screen.blit(img, rect)
 
         pygame.display.flip()
 
