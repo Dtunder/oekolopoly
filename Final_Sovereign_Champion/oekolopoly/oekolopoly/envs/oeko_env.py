@@ -23,8 +23,8 @@ class OekoEnv(gym.Env):
 
         - 'balance (always)': the game balance according to the Ökolopoly balance formula, irrespective of round
         - 'balance_numerator (always)': the numerator of this formula
-        - 'balance': `info['balance (always)']` if round \in [10,30], 0 else
-        - 'balance_numerator': `info['balance_numerator (always)']` if round \in [10,30], 0 else
+        - 'balance': `info['balance (always)']` if round in [10,30], 0 else
+        - 'balance_numerator': `info['balance_numerator (always)']` if round in [10,30], 0 else
         - 'round': the number of rounds played
         - 'done_reason': string with the reason for termination (`None` if not yet terminated)
         - 'done_reason_detail': string with further info
@@ -90,17 +90,17 @@ class OekoEnv(gym.Env):
              0,  # 7 Politics
              0,  # 8 Round
              8,  # 9 Points
-        ])
+        ], dtype=np.int32)
 
         #                      0   1   2   3   4   5   6    7   8   9
         #                      S  Pr  Ed  Q   PG  En  Pop  Pol  R  AP
-        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0])
-        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36])
+        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0], dtype=np.int32)
+        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36], dtype=np.int32)
 
         #                      0   1   2   3   4   5
         #                      S  Pr  Ed   Q  PG  SC
-        self.Amin = np.array([ 0,-28,  0,  0,  0, -5])
-        self.Amax = np.array([28, 28, 28, 28, 28,  5])
+        self.Amin = np.array([ 0,-28,  0,  0,  0, -5], dtype=np.int32)
+        self.Amax = np.array([28, 28, 28, 28, 28,  5], dtype=np.int32)
 
         self.action_space = spaces.MultiDiscrete([
             29,  # 0 Sanitation
@@ -412,9 +412,8 @@ class OekoEnv(gym.Env):
 
         return self.V, done, done_info, done_reason_detail
 
-    def clip(self, s: int):
-        v = min(max(self.V[s], int(self.Vmin[s])), int(self.Vmax[s]))
-        return v
+    def clip(self, s: int) -> np.int32:
+        return np.clip(self.V[s], self.Vmin[s], self.Vmax[s])
 
     def step(self, action):
         clipping = True

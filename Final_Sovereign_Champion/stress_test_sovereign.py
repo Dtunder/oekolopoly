@@ -15,7 +15,7 @@ def run_stress_test(num_episodes=50, noise_level=2):
     print(f"--- STARTING SOVEREIGN STRESS TEST ---")
     print(f"Noise Level: +/- {noise_level} units on initial state")
     
-    model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
+    model_path = os.path.join(ROOT, "sota_recurrent_champion")
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)

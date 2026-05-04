@@ -14,7 +14,7 @@ from run_champion import SovereignGuardian
 def calculate_harmony():
     print("--- SOVEREIGN HARMONY EVALUATOR ---")
     
-    model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
+    model_path = os.path.join(ROOT, "sota_recurrent_champion")
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)

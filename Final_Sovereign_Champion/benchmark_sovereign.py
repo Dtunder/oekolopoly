@@ -1,6 +1,7 @@
 import os
 import sys
 import gc
+from typing import Any
 import numpy as np
 import gymnasium as gym
 
@@ -17,16 +18,18 @@ def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
     return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
 nn.LSTM.__init__ = patched_lstm_init
 
-ROOT = "G:/Meine Ablage/Antigravity/Oekolopoly/2026-05-01_SOTA_Champion_Build"
+ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 import oekolopoly.oekolopoly
 from sb3_contrib import RecurrentPPO
 
 class SovereignGuardian:
-    def __init__(self, env):
+    """The analytical core of the Sovereign Champion."""
+    def __init__(self, env: gym.Env):
         self.env = env
 
-    def get_final_action(self, raw_action, avail):
+    def get_final_action(self, raw_action: Any, avail: int) -> np.ndarray:
+        """Applies V106 Alchemist logic to ensure 30-year survival."""
         V = self.env.unwrapped.V
         dist = np.zeros(5, dtype=int)
         
@@ -39,10 +42,9 @@ class SovereignGuardian:
         p_dist = p_target - int(V[1])
         if avail > 0:
             d = min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d)
-            avail -= abs(dist[1])
+            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
             
-        # 3. ALCHEMIST BURN (Avoid 35)
+        # 3. ALCHEMIST BURN (Safety valve for Action Points)
         while avail + int(V[9]) > 28:
             changed = False
             if int(V[2]) + dist[2] < 29:
@@ -70,9 +72,10 @@ class SovereignGuardian:
         elif V[6] < 18: final[5] = 10
         return np.clip(final, 0, 56)
 
+
 def run_benchmark(num_episodes=100):
     print(f"--- STARTING SOVEREIGN BENCHMARK: {num_episodes} EPISODES ---")
-    model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
+    model_path = os.path.join(ROOT, "sota_recurrent_champion")
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)
