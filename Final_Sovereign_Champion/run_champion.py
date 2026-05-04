@@ -31,41 +31,31 @@ import oekolopoly.oekolopoly
 from sb3_contrib import RecurrentPPO
 
 class SovereignGuardian:
-    """The analytical core of the Sovereign Champion - V290 Hardened."""
+    """The analytical core of the Sovereign Champion."""
     def __init__(self, env: gym.Env):
         self.env = env
 
     def get_final_action(self, raw_action: Any, avail: int) -> np.ndarray:
-        """Applies V290 'The Black Sky' logic to ensure 30-year survival."""
+        """Applies V106 Alchemist logic to ensure 30-year survival."""
         V = self.env.unwrapped.V
         dist = np.zeros(5, dtype=int)
-        reasons = []
         
-        # 1. CORE INVESTMENTS (Education is the foundation)
+        # 1. CORE INVESTMENTS
         if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2]))
-            dist[2] = int(d)
-            avail -= dist[2]
-            reasons.append(f"Edu+{d}")
+            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
             
-        # 2. ZEN-STATUS PRODUCTION GOVERNOR
-        # V290 Strategy: If Politics > 27, we NEED to pollute to lower QoL and slow Pol growth.
+        # 2. SURVIVAL TARGETS & BLACK SKY
         p_target = 13
-        if V[7] > 27:
-            p_target = 29 # Aggressive Production to trigger Smog Shield
-            reasons.append("BLACK SKY ACTIVE")
-        elif V[5] < 10:
-            p_target = 18 # Increase prod to balance super-clean environment
-            
+        # Black Sky Strategy: If environment is critically low or Politics are unstable
+        if V[5] <= 9 or V[7] < -5:
+            p_target = 22 # Force high production
+
         p_dist = p_target - int(V[1])
         if avail > 0:
-            d = min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d)
-            avail -= abs(dist[1])
-            reasons.append(f"Prod->{p_target}")
+            d = min(avail, abs(p_dist)) if (V[5] <= 9 or V[7] < -5) else min(max(1, avail // 2), abs(p_dist))
+            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
             
         # 3. ALCHEMIST BURN (Safety valve for Action Points)
-        # We must keep Points < 35 to avoid total collapse
         while avail + int(V[9]) > 28:
             changed = False
             if int(V[2]) + dist[2] < 29:
@@ -75,7 +65,7 @@ class SovereignGuardian:
             elif int(V[4]) + dist[4] < 15:
                 dist[4] += 1; avail -= 1; changed = True
             elif V[5] < 12:
-                if int(V[1]) + dist[1] < 22:
+                if int(V[1]) + dist[1] < 18:
                     dist[1] += 1; avail -= 1; changed = True
                 else: break
             elif V[5] > 20:
@@ -86,18 +76,15 @@ class SovereignGuardian:
                 if int(V[1]) + dist[1] > 5:
                     dist[1] -= 1; avail -= 1; changed = True
                 else: break
-            if not changed or avail + int(V[9]) <= 28: break
+            if avail + int(V[9]) <= 28: break
 
         final = [int(dist[0]), int(dist[1] + 28), int(dist[2]), int(dist[3]), int(dist[4]), 5]
-        # Pop Control
-        if V[6] > 32: final[5] = 1 # Decrease
-        elif V[6] < 18: final[5] = 10 # Increase
-        
+        if V[6] > 32: final[5] = 1
+        elif V[6] < 18: final[5] = 10
         return np.clip(final, 0, 56)
 
 def run_sovereign() -> None:
     """Executes a full 30-year simulation using the Sovereign Champion."""
-    print("DEBUG: Simulation starting...")
     logger.info("--- SOVEREIGN CHAMPION V130: MASTER ALCHEMIST ---")
     gc.collect()
     

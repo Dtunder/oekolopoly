@@ -37,11 +37,15 @@ class SovereignGuardian:
         if V[2] < 29 and avail > 0:
             d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
             
-        # 2. SURVIVAL TARGETS
+        # 2. SURVIVAL TARGETS & BLACK SKY
         p_target = 13
+        # Black Sky Strategy: If environment is critically low or Politics are unstable
+        if V[5] <= 9 or V[7] < -5:
+            p_target = 22 # Force high production
+
         p_dist = p_target - int(V[1])
         if avail > 0:
-            d = min(max(1, avail // 2), abs(p_dist))
+            d = min(avail, abs(p_dist)) if (V[5] <= 9 or V[7] < -5) else min(max(1, avail // 2), abs(p_dist))
             dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
             
         # 3. ALCHEMIST BURN (Safety valve for Action Points)
