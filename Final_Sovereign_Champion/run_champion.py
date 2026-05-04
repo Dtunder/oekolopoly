@@ -29,6 +29,7 @@ sys.path.append(ROOT)
 
 import oekolopoly.oekolopoly
 from sb3_contrib import RecurrentPPO
+from mcts_planner import MCTSPlanner
 
 class SovereignGuardian:
     """The analytical core of the Sovereign Champion."""
@@ -89,14 +90,14 @@ def run_sovereign() -> None:
         model = RecurrentPPO.load(model_path, device='cpu')
         base_env = gym.make("Oekolopoly-v2")
         guardian = SovereignGuardian(base_env)
+        planner = MCTSPlanner(model, guardian, simulations=50)
         
         obs, _ = base_env.reset()
         lstm_states = None
         episode_starts = np.ones((1,), dtype=bool)
         
         for year in range(35):
-            action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-            final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+            final_action, future_states = planner.search(obs, base_env)
             obs, reward, terminated, truncated, info = base_env.step(final_action)
             episode_starts = np.zeros((1,), dtype=bool)
             V = base_env.unwrapped.V

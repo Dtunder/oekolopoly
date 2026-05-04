@@ -36,11 +36,13 @@ logger = logging.getLogger("SovereignChampion")
 
 # Define Absolute Root Path for Bulletproof Execution
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+import sys
 sys.path.append(ROOT_DIR)
 
 from translator import dict_translate, dict_help_screens
 import oekolopoly.oekolopoly
 import pygame
+from mcts_planner import MCTSPlanner
 
 class SovereignGuardian:
     def __init__(self, env):
@@ -376,6 +378,7 @@ class Game:
             logger.error(f"CRITICAL: Model file {model_path} not found!")
             sys.exit(1)
         self.agent = RecurrentPPO.load(model_path, device='cpu')
+        self.mcts_planner = MCTSPlanner(self.agent, SovereignGuardian(self.env), simulations=50)
         self.lstm_states = None
         self.episode_starts = np.ones((1,), dtype=bool)
         self.current_action = [0, 0, 0, 0, 0, 0]
@@ -715,17 +718,15 @@ class Game:
         self.special_action_points = 5 - abs(self.current_action[5])
 
     def sovereign_move(self) -> None:
-        guardian = SovereignGuardian(self.env)
-        a_for_env, reason = guardian.get_final_action(int(self.env.unwrapped.V[self.env.unwrapped.POINTS]))
+        a_for_env, trajectory = self.mcts_planner.search(self.agent_obs, self.env)
         self.current_action = a_for_env
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
         for i in range(5):
             self.available_actionpoints -= abs(a_for_env[i])
         self.special_action_points = 5 - abs(self.current_action[5])
-        self.sovereign_reasoning_label.text = f"{self.dtl['Reasoning']}: {reason}"
+        self.sovereign_reasoning_label.text = f"{self.dtl['Reasoning']}: MCTS AlphaZero Solver (50 Iters)"
         
         # Predictive Analytics
-        trajectory = guardian.predict_future(a_for_env, steps=5)
         pred_text = f"{self.dtl['Prediction']}: "
         for i, v in enumerate(trajectory):
             pred_text += f"Y{int(v[8])}:[Env:{int(v[5])}, QoL:{int(v[3])}] "

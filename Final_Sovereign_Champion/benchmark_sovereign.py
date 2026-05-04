@@ -17,10 +17,11 @@ def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
     return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
 nn.LSTM.__init__ = patched_lstm_init
 
-ROOT = "G:/Meine Ablage/Antigravity/Oekolopoly/2026-05-01_SOTA_Champion_Build"
+ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 import oekolopoly.oekolopoly
 from sb3_contrib import RecurrentPPO
+from mcts_planner import MCTSPlanner
 
 class SovereignGuardian:
     def __init__(self, env):
@@ -76,24 +77,20 @@ def run_benchmark(num_episodes=100):
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)
+    planner = MCTSPlanner(model, guardian, simulations=20)
     
     results = []
-    with torch.inference_mode():
-        for i in range(num_episodes):
-            obs, _ = base_env.reset()
-            lstm_states = None
-            episode_starts = np.ones((1,), dtype=bool)
-            year = 0
-            for _ in range(40): # Buffer for 30 years
-                action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-                final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
-                obs, reward, terminated, truncated, info = base_env.step(final_action)
-                episode_starts = np.zeros((1,), dtype=bool)
-                year = base_env.unwrapped.V[8]
-                if terminated or truncated:
-                    break
-            results.append(year)
-            if (i+1) % 10 == 0:
+    for i in range(num_episodes):
+        obs, _ = base_env.reset()
+        year = 0
+        for _ in range(40): # Buffer for 30 years
+            final_action, _ = planner.search(obs, base_env)
+            obs, reward, terminated, truncated, info = base_env.step(final_action)
+            year = base_env.unwrapped.V[8]
+            if terminated or truncated:
+                break
+        results.append(year)
+        if (i+1) % 10 == 0:
                 success_count = sum(1 for r in results if r >= 30)
                 print(f"Episode {i+1}/{num_episodes} completed. Current Success Rate: {success_count/(i+1)*100:.1f}%")
     

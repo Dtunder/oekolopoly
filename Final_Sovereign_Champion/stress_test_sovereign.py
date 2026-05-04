@@ -19,30 +19,27 @@ def run_stress_test(num_episodes=50, noise_level=2):
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)
+    from mcts_planner import MCTSPlanner
+    planner = MCTSPlanner(model, guardian, simulations=20)
     
     results = []
-    with torch.inference_mode():
-        for i in range(num_episodes):
-            obs, _ = base_env.reset()
-            # Inject Noise into initial state
-            V = base_env.unwrapped.V
-            for j in range(8): # Noise on San, Pro, Edu, QoL, PopG, Env, Pop, Pol
-                noise = np.random.randint(-noise_level, noise_level + 1)
-                V[j] = np.clip(V[j] + noise, base_env.unwrapped.Vmin[j], base_env.unwrapped.Vmax[j])
-            
-            lstm_states = None
-            episode_starts = np.ones((1,), dtype=bool)
-            year = 0
-            for _ in range(40):
-                action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-                final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
-                obs, reward, terminated, truncated, info = base_env.step(final_action)
-                episode_starts = np.zeros((1,), dtype=bool)
-                year = base_env.unwrapped.V[8]
-                if terminated or truncated:
-                    break
-            results.append(year)
-            if (i+1) % 10 == 0:
+    for i in range(num_episodes):
+        obs, _ = base_env.reset()
+        # Inject Noise into initial state
+        V = base_env.unwrapped.V
+        for j in range(8): # Noise on San, Pro, Edu, QoL, PopG, Env, Pop, Pol
+            noise = np.random.randint(-noise_level, noise_level + 1)
+            V[j] = np.clip(V[j] + noise, base_env.unwrapped.Vmin[j], base_env.unwrapped.Vmax[j])
+
+        year = 0
+        for _ in range(40):
+            final_action, _ = planner.search(obs, base_env)
+            obs, reward, terminated, truncated, info = base_env.step(final_action)
+            year = base_env.unwrapped.V[8]
+            if terminated or truncated:
+                break
+        results.append(year)
+        if (i+1) % 10 == 0:
                 print(f"Episode {i+1}/{num_episodes} completed. Survival Rate: {sum(1 for r in results if r >= 30)/(i+1)*100:.1f}%")
     
     print("\n--- STRESS TEST RESULTS ---")
