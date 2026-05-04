@@ -281,6 +281,7 @@ class OekoEnv(gym.Env):
         box1 = gb.get_box1(self.clip(self.SANITATION))
         if not done:
             self.V[self.ENVIRONMENT] += box1
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -290,6 +291,7 @@ class OekoEnv(gym.Env):
         if not done:
             box2 = gb.get_box2(self.clip(self.SANITATION))
             self.V[self.SANITATION] += box2
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.SANITATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.SANITATION] > 29 else self.etl[" too low. "]
@@ -299,15 +301,17 @@ class OekoEnv(gym.Env):
         if not done:
             box3 = gb.get_box3(self.clip(self.PRODUCTION))
             self.V[self.PRODUCTION] += box3
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.PRODUCTION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.PRODUCTION] > 29 else self.etl[" too low. "]
                 done_info = self.dtl["Production"] + l
-                done_reason_detail = f"{self.V[self.SANITATION]} {OOR} (1, ..., 29)."
+                done_reason_detail = f"{self.V[self.PRODUCTION]} {OOR} (1, ..., 29)."
 
         if not done:
             box4 = gb.get_box4(self.clip(self.PRODUCTION))
             self.V[self.ENVIRONMENT] += box4
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -317,6 +321,7 @@ class OekoEnv(gym.Env):
         if not done:
             box5 = gb.get_box5(self.clip(self.ENVIRONMENT))
             self.V[self.ENVIRONMENT] += box5
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -326,6 +331,7 @@ class OekoEnv(gym.Env):
         if not done:
             box6 = gb.get_box6(self.clip(self.ENVIRONMENT))
             self.V[self.QUALITY_OF_LIFE] += box6
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -335,6 +341,7 @@ class OekoEnv(gym.Env):
         if not done:
             box7 = gb.get_box7(self.clip(self.EDUCATION))
             self.V[self.EDUCATION] += box7
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.EDUCATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.EDUCATION] > 29 else self.etl[" too low. "]
@@ -344,6 +351,7 @@ class OekoEnv(gym.Env):
         if not done:
             box8 = gb.get_box8(self.clip(self.EDUCATION))
             self.V[self.QUALITY_OF_LIFE] += box8
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -358,6 +366,7 @@ class OekoEnv(gym.Env):
                 extra_points = 0
             box9 = gb.get_box9(self.V[self.EDUCATION], extra_points)
             self.V[self.POPULATION_GROWTH] += box9
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.POPULATION_GROWTH] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POPULATION_GROWTH] > 29 else self.etl[" too low. "]
@@ -367,6 +376,7 @@ class OekoEnv(gym.Env):
         if not done:
             box10 = gb.get_box10(self.clip(self.QUALITY_OF_LIFE))
             self.V[self.QUALITY_OF_LIFE] += box10
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -595,11 +605,11 @@ class OekoEnv(gym.Env):
 
     def reset(self, options=None, seed=None):
         if options is not None and "v" in options:
-            self.V = np.array(options["v"])  # non-default initial values v
+            self.V = np.array(options["v"], dtype=np.int32)  # non-default initial values v
         else:
             self.V = self.get_initial_v()
 
-        self.curr_action = np.zeros(self.action_space.shape[0], 'int64')
+        self.curr_action = np.zeros(self.action_space.shape[0], dtype=np.int32)
         self.curr_result = self.V.copy()
 
         self.done = False
