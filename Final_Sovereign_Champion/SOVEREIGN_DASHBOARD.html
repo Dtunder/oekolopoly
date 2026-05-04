@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Dashboard V290</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #131a2a;
+            --accent-green: #00ff88;
+            --accent-blue: #00d2ff;
+            --accent-red: #ff3366;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: #1e293b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.8em;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.2em;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Interactive Elements */
+        .node { transition: all 0.3s ease; cursor: pointer; }
+        .node:hover { filter: brightness(1.2) drop-shadow(0 0 10px rgba(0, 255, 136, 0.5)); }
+
+        .flow-line {
+            stroke-dasharray: 8;
+            animation: flow 1s linear infinite;
+        }
+        @keyframes flow {
+            to { stroke-dashoffset: -16; }
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Sovereign Dashboard V290</h1>
+        <p>Cybernetic Control Loop & System Diagnostics by Antigravity</p>
+    </div>
+
+    <div class="dashboard">
+        <!-- Panel 1: Feedback Loop -->
+        <div class="panel full-width">
+            <h2>🌀 Echtzeit-Feedback-Loop: The Cybernetic Engine</h2>
+            <svg width="100%" height="250" viewBox="0 0 1200 250" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+                <!-- Lines -->
+                <path d="M 350 125 L 450 125" stroke="var(--text-muted)" stroke-width="3" fill="none" class="flow-line"/>
+                <path d="M 750 125 L 850 125" stroke="var(--text-muted)" stroke-width="3" fill="none" class="flow-line"/>
+                <path d="M 1000 175 L 1000 220 L 200 220 L 200 175" stroke="var(--accent-blue)" stroke-width="3" fill="none" class="flow-line"/>
+
+                <!-- Nodes -->
+                <!-- Simulation -->
+                <g class="node" transform="translate(50, 75)">
+                    <rect width="300" height="100" rx="10" fill="#1e293b" stroke="var(--accent-blue)" stroke-width="2"/>
+                    <text x="150" y="45" fill="white" font-size="20" font-weight="bold" text-anchor="middle" class="glow-text">Oekolopoly-v2 Engine</text>
+                    <text x="150" y="75" fill="var(--text-muted)" font-size="14" text-anchor="middle">State: V Array (np.int32)</text>
+                </g>
+
+                <!-- AI -->
+                <g class="node" transform="translate(450, 75)">
+                    <rect width="300" height="100" rx="10" fill="#1e293b" stroke="var(--accent-green)" stroke-width="2"/>
+                    <text x="150" y="45" fill="white" font-size="20" font-weight="bold" text-anchor="middle" class="glow-text">Neural Layer</text>
+                    <text x="150" y="75" fill="var(--accent-green)" font-size="14" text-anchor="middle">RecurrentPPO (LSTM)</text>
+                </g>
+
+                <!-- Guardian -->
+                <g class="node" transform="translate(850, 75)">
+                    <rect width="300" height="100" rx="10" fill="#1e293b" stroke="var(--accent-red)" stroke-width="2"/>
+                    <text x="150" y="45" fill="white" font-size="20" font-weight="bold" text-anchor="middle" class="glow-text">Symbolic Layer</text>
+                    <text x="150" y="75" fill="var(--accent-red)" font-size="14" text-anchor="middle">SovereignGuardian</text>
+                </g>
+
+                <!-- Arrows -->
+                <polygon points="440,120 450,125 440,130" fill="var(--text-muted)" />
+                <polygon points="840,120 850,125 840,130" fill="var(--text-muted)" />
+                <polygon points="210,185 200,175 190,185" fill="var(--accent-blue)" />
+
+                <!-- Labels -->
+                <text x="400" y="115" fill="var(--text-muted)" font-size="14" text-anchor="middle">Observation</text>
+                <text x="800" y="115" fill="var(--text-muted)" font-size="14" text-anchor="middle">Raw Action</text>
+                <text x="600" y="240" fill="var(--accent-blue)" font-size="14" text-anchor="middle">Filtered & Safe Action (Budget-Aware)</text>
+            </svg>
+            <p style="text-align: center; color: var(--text-muted); margin-top: 10px;">
+                Der Datenfluss: Die Simulation generiert den Status (mathematisch deterministisch in np.int32). Das LSTM-Netzwerk schlägt eine langfristige Strategie vor, welche der SovereignGuardian zwingend budgetiert und korrigiert, bevor sie ausgeführt wird.
+            </p>
+        </div>
+
+        <!-- Panel 2: 3-Pillar Logic -->
+        <div class="panel">
+            <h2>🏛️ Die 3-Säulen-Logik</h2>
+            <svg width="100%" height="350" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+                <!-- Pillar 3 -->
+                <g class="node">
+                    <polygon points="300,30 430,120 170,120" fill="rgba(255, 51, 102, 0.2)" stroke="var(--accent-red)" stroke-width="2"/>
+                    <text x="300" y="90" fill="white" font-size="18" font-weight="bold" text-anchor="middle">3. Alchemist Burn</text>
+                    <text x="300" y="110" fill="var(--accent-red)" font-size="12" text-anchor="middle">AP Dissipation</text>
+                </g>
+                <!-- Pillar 2 -->
+                <g class="node">
+                    <polygon points="170,130 430,130 490,220 110,220" fill="rgba(0, 210, 255, 0.2)" stroke="var(--accent-blue)" stroke-width="2"/>
+                    <text x="300" y="180" fill="white" font-size="18" font-weight="bold" text-anchor="middle">2. Black Sky</text>
+                    <text x="300" y="205" fill="var(--accent-blue)" font-size="12" text-anchor="middle">Controlled Pollution (Env 12-18)</text>
+                </g>
+                <!-- Pillar 1 -->
+                <g class="node">
+                    <polygon points="110,230 490,230 550,320 50,320" fill="rgba(0, 255, 136, 0.2)" stroke="var(--accent-green)" stroke-width="2"/>
+                    <text x="300" y="280" fill="white" font-size="20" font-weight="bold" text-anchor="middle">1. Education</text>
+                    <text x="300" y="305" fill="var(--accent-green)" font-size="14" text-anchor="middle">Foundation / Satiation (Level 29)</text>
+                </g>
+            </svg>
+            <p style="text-align: center; color: var(--text-muted); margin-top: auto;">
+                Die strikte Priorisierung: <strong>Bildung</strong> sichert das AP-Einkommen als Basis. <strong>Black Sky</strong> verhindert den QoL-Kollaps. <strong>Alchemist Burn</strong> vernichtet restliche AP durch Sabotage, um das Überleben zu garantieren.
+            </p>
+        </div>
+
+        <!-- Panel 3: Success Paradox Graph -->
+        <div class="panel">
+            <h2>⚠️ The Success Paradox</h2>
+            <svg width="100%" height="350" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+                <!-- Grid -->
+                <line x1="50" y1="300" x2="550" y2="300" stroke="var(--border-color)" stroke-width="2"/>
+                <line x1="50" y1="50" x2="50" y2="300" stroke="var(--border-color)" stroke-width="2"/>
+                <line x1="50" y1="100" x2="550" y2="100" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="4"/>
+
+                <!-- Axis Labels -->
+                <text x="300" y="330" fill="var(--text-muted)" text-anchor="middle">Year (0 - 30)</text>
+                <text x="20" y="175" fill="var(--text-muted)" text-anchor="middle" transform="rotate(-90 20,175)">Quality of Life (QoL)</text>
+
+                <!-- Hard Threshold Line -->
+                <text x="540" y="90" fill="var(--accent-red)" font-size="12" text-anchor="end">QoL Collapse Threshold (>35)</text>
+
+                <!-- Black Sky Region Overlay -->
+                <rect x="50" y="100" width="500" height="200" fill="rgba(0, 210, 255, 0.03)"/>
+
+                <!-- Standard Agent Line (Red, hits threshold and stops) -->
+                <!-- Starts at QoL 10 (y=250), Year 12 (x=250) hits QoL 35 (y=100), Game Over -->
+                <path d="M 50 250 Q 150 200 250 100" fill="none" stroke="var(--accent-red)" stroke-width="3" stroke-dasharray="5"/>
+                <circle cx="250" cy="100" r="6" fill="var(--accent-red)"/>
+                <text x="260" y="85" fill="var(--accent-red)" font-size="12">Standard Agent (System Failure)</text>
+
+                <!-- Sovereign Champion Line (Green, stable) -->
+                <!-- Rises to about 25-30, then stays flat due to Black Sky -->
+                <path d="M 50 250 Q 120 220 200 180 T 350 150 T 550 140" fill="none" stroke="var(--accent-green)" stroke-width="3"/>
+                <circle cx="550" cy="140" r="6" fill="var(--accent-green)"/>
+                <text x="540" y="130" fill="var(--accent-green)" font-size="12" text-anchor="end">Sovereign Champion</text>
+
+                <!-- Callout -->
+                <text x="400" y="200" fill="var(--accent-blue)" font-size="14" text-anchor="middle" font-style="italic">Black Sky Active: QoL Suppressed</text>
+            </svg>
+            <p style="text-align: center; color: var(--text-muted); margin-top: auto;">
+                Das Paradoxon der Sauberkeit: Eine zu saubere Umwelt führt zu exponentiellem QoL-Wachstum. Der <strong>Black Sky</strong> Modus agiert als kybernetisches Ventil, um die Lebensqualität künstlich unter dem fatalen Limit zu stabilisieren.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
