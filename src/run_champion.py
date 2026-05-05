@@ -8,8 +8,8 @@ import io
 from typing import List, Tuple, Optional, Any
 
 # Force UTF-8 for Windows Console (Fixes Tree Rendering)
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+# if sys.platform == "win32":
+#     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Configure Professional Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -115,7 +115,7 @@ def run_sovereign() -> None:
         base_env = gym.make("Oekolopoly-v2")
         base_env = OekoActionBuilderWrapper(base_env)
         
-        planner = SovereignMCTS(model, num_simulations=3000, render_tree=True)
+        planner = SovereignMCTS(model, num_simulations=50, render_tree=True)
     
         obs, _ = base_env.reset()
         
