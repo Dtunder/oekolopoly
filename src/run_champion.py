@@ -13,11 +13,31 @@ logger = logging.getLogger("SovereignRunner")
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 import torch
+
+# Priority paths for Nasuta's original work
+NASUTA_ROOT = r"G:\Meine Ablage\oekolopoly2\gymcts-games-main\gymcts-games-main\src"
+if NASUTA_ROOT not in sys.path:
+    sys.path.insert(0, NASUTA_ROOT)
+
 torch.set_num_threads(1)
 torch.set_grad_enabled(False)
 
+# Manual Environment Registration
+from gymnasium.envs.registration import register
+try:
+    register(
+        id="Oekolopoly-v2",
+        entry_point="oekolopoly.env.oeko_env:OekoEnv",
+    )
+except Exception:
+    pass # Already registered
+
 # WATERPROOF MONKEY PATCH
 import torch.nn as nn
+
+# Sovereign Component Imports
+from mcts_planner import SovereignMCTS
+from sb3_contrib import RecurrentPPO
 original_lstm_init = nn.LSTM.__init__
 def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
     return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
@@ -26,9 +46,6 @@ nn.LSTM.__init__ = patched_lstm_init
 # Set paths dynamically
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
-
-import oekolopoly.oekolopoly
-from sb3_contrib import RecurrentPPO
 
 class SovereignGuardian:
     """The analytical core of the Sovereign Champion."""
@@ -80,7 +97,7 @@ class SovereignGuardian:
         return np.clip(final, 0, 56)
 
 def run_sovereign() -> None:
-    """Executes a full 30-year simulation using the Sovereign Champion."""
+    """Executes a full 30-round simulation using the Sovereign Champion."""
     logger.info("--- SOVEREIGN CHAMPION V130: MASTER ALCHEMIST ---")
     gc.collect()
     
@@ -88,30 +105,27 @@ def run_sovereign() -> None:
         model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
         model = RecurrentPPO.load(model_path, device='cpu')
         base_env = gym.make("Oekolopoly-v2")
-        guardian = SovereignGuardian(base_env)
-        
+        planner = SovereignMCTS(model, num_simulations=3000, render_tree=True)
+    
         obs, _ = base_env.reset()
-        lstm_states = None
-        episode_starts = np.ones((1,), dtype=bool)
+        V = base_env.unwrapped.V
         
-        for year in range(35):
-            action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-            final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+        for round_num in range(1, 35):
+            # DEEP THINKING SEARCH
+            final_action = planner.search(base_env)
+            
             obs, reward, terminated, truncated, info = base_env.step(final_action)
-            episode_starts = np.zeros((1,), dtype=bool)
             V = base_env.unwrapped.V
             
-            if year % 5 == 0:
-                logger.info(f"Year {int(V[8])}: Env={int(V[5])}, QoL={int(V[3])}, AP={int(V[9])}")
+            logger.info(f"Round {int(V[8])}: Env={int(V[5])}, QoL={int(V[3])}, AP={int(V[9])}")
                 
             if terminated or truncated:
+                if V[8] >= 30:
+                    logger.info(f"SUCCESS: Round 30 reached. Final AP: {int(V[9])}")
+                else:
+                    logger.warning(f"FAILED at Round {int(V[8])}. Reason: {info.get('done_reason')}")
                 break
                 
-        if V[8] >= 30:
-            logger.info(f"SUCCESS: Year 30 reached. Final AP: {int(V[9])}")
-        else:
-            logger.warning(f"FAILED at Year {int(V[8])}. Reason: {info.get('done_reason')}")
-            
     except Exception as e:
         logger.error(f"Critical error during simulation: {e}")
 
