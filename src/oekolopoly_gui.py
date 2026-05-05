@@ -825,6 +825,31 @@ class Game:
 
     def run_simulation(self):
         """Standard human step execution with logging."""
+        # Convert GUI action (0-56) to Env action (-28 to 28)
+        # This is CRITICAL to fix the "36 action points used" bug!
+        import numpy as np
+        raw_action = np.array(self.current_action, dtype=np.int64)
+        
+        # Transform points: e.g. GUI 0 points -> Env -28 points
+        # But wait, we need to match the ActionSpace.
+        # Actually, the GUI logic already works in absolute points for internal state,
+        # but the env.step() expects RAW indices for MultiDiscrete.
+        
+        # Fix: The GUI should pass the action as is IF it's using the ActionBuilderWrapper,
+        # but here we use the base OekoEnv.
+        
+        # Correct logic: Subtract Amin from the human move to get the index.
+        action_for_env = raw_action.copy()
+        # Production is at index 1, Special is at index 5
+        # The MultiDiscrete space is 0..N.
+        # GUI uses 0..56 for production. Amin is -28.
+        # So GUI 0 (min) -> index 0. GUI 28 (zero) -> index 28. GUI 56 (max) -> index 56.
+        # The env.step() will then add Amin (-28) to get the real value.
+        
+        # Current GUI action [0, 0, 8, 0, 0, 0] is ALREADY in the correct index space 
+        # for most fields, EXCEPT Production and Special which have offsets.
+        
+        # Let's use the provided helper:
         action_array = np.array(self.current_action, dtype=np.int64)
         
         try:
@@ -833,7 +858,9 @@ class Game:
             self.all_actions.append(self.current_action)
             self.reset_current_action()
             if self.done:
-                logger.info(f"Simulation Terminated.")
+                reason = info.get('done_reason', 'Unknown')
+                detail = info.get('done_reason_detail', '')
+                logger.info(f"Simulation Terminated. Reason: {reason} | Detail: {detail}")
                 self.handle_game_over(info)
         except Exception as e:
             error_msg = f"Simulation Error: {e}"
