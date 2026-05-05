@@ -2,22 +2,20 @@ import os
 import sys
 import numpy as np
 import gymnasium as gym
-# from sb3_contrib import RecurrentPPO # Moved to lazy loading
+import torch
+from sb3_contrib import RecurrentPPO
 
 # Paths
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 
-from run_champion import SovereignGuardian, lazy_load_torch
+from run_champion import SovereignGuardian
 
 def run_stress_test(num_episodes=50, noise_level=2):
     print(f"--- STARTING SOVEREIGN STRESS TEST ---")
     print(f"Noise Level: +/- {noise_level} units on initial state")
     
-    torch, RecurrentPPO = lazy_load_torch()
-    if not RecurrentPPO: return
-    
-    model_path = os.path.join(ROOT, "sota_recurrent_champion")
+    model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
     model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)
@@ -37,7 +35,7 @@ def run_stress_test(num_episodes=50, noise_level=2):
             year = 0
             for _ in range(40):
                 action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-                final_action, _ = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+                final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
                 obs, reward, terminated, truncated, info = base_env.step(final_action)
                 episode_starts = np.zeros((1,), dtype=bool)
                 year = base_env.unwrapped.V[8]

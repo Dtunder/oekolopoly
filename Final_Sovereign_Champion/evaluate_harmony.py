@@ -2,24 +2,20 @@ import os
 import sys
 import numpy as np
 import gymnasium as gym
+import torch
 import copy
-# from sb3_contrib import RecurrentPPO # Moved to lazy loading
+from sb3_contrib import RecurrentPPO
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 
-from run_champion import SovereignGuardian, lazy_load_torch
+from run_champion import SovereignGuardian
 
-def calculate_harmony(use_ai=False):
-    print(f"--- SOVEREIGN HARMONY EVALUATOR ({'AI' if use_ai else 'Heuristic'}) ---")
+def calculate_harmony():
+    print("--- SOVEREIGN HARMONY EVALUATOR ---")
     
-    model = None
-    if use_ai:
-        torch, RecurrentPPO = lazy_load_torch()
-        if RecurrentPPO:
-            model_path = os.path.join(ROOT, "sota_recurrent_champion")
-            model = RecurrentPPO.load(model_path, device='cpu')
-    
+    model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
+    model = RecurrentPPO.load(model_path, device='cpu')
     base_env = gym.make("Oekolopoly-v2")
     guardian = SovereignGuardian(base_env)
     
@@ -29,14 +25,10 @@ def calculate_harmony(use_ai=False):
     
     history = []
     for _ in range(35):
-        if use_ai and model:
-            action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
-            episode_starts = np.zeros((1,), dtype=bool)
-        else:
-            action = None # Heuristic Zen mode
-            
-        final_action, reasons = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
+        action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
+        final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
         obs, reward, terminated, truncated, info = base_env.step(final_action)
+        episode_starts = np.zeros((1,), dtype=bool)
         history.append(copy.deepcopy(base_env.unwrapped.V))
         if terminated or truncated: break
     
@@ -80,4 +72,4 @@ def calculate_harmony(use_ai=False):
     print("-" * 30)
 
 if __name__ == "__main__":
-    calculate_harmony(use_ai=False)
+    calculate_harmony()
