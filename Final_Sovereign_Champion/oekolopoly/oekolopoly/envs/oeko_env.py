@@ -23,8 +23,8 @@ class OekoEnv(gym.Env):
 
         - 'balance (always)': the game balance according to the Ökolopoly balance formula, irrespective of round
         - 'balance_numerator (always)': the numerator of this formula
-        - 'balance': `info['balance (always)']` if round \in [10,30], 0 else
-        - 'balance_numerator': `info['balance_numerator (always)']` if round \in [10,30], 0 else
+        - 'balance': `info['balance (always)']` if round in [10,30], 0 else
+        - 'balance_numerator': `info['balance_numerator (always)']` if round in [10,30], 0 else
         - 'round': the number of rounds played
         - 'done_reason': string with the reason for termination (`None` if not yet terminated)
         - 'done_reason_detail': string with further info
@@ -90,17 +90,17 @@ class OekoEnv(gym.Env):
              0,  # 7 Politics
              0,  # 8 Round
              8,  # 9 Points
-        ])
+        ], dtype=np.int32)
 
         #                      0   1   2   3   4   5   6    7   8   9
         #                      S  Pr  Ed  Q   PG  En  Pop  Pol  R  AP
-        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0])
-        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36])
+        self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0], dtype=np.int32)
+        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36], dtype=np.int32)
 
         #                      0   1   2   3   4   5
         #                      S  Pr  Ed   Q  PG  SC
-        self.Amin = np.array([ 0,-28,  0,  0,  0, -5])
-        self.Amax = np.array([28, 28, 28, 28, 28,  5])
+        self.Amin = np.array([ 0,-28,  0,  0,  0, -5], dtype=np.int32)
+        self.Amax = np.array([28, 28, 28, 28, 28,  5], dtype=np.int32)
 
         self.action_space = spaces.MultiDiscrete([
             29,  # 0 Sanitation
@@ -281,6 +281,7 @@ class OekoEnv(gym.Env):
         box1 = gb.get_box1(self.clip(self.SANITATION))
         if not done:
             self.V[self.ENVIRONMENT] += box1
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -290,6 +291,7 @@ class OekoEnv(gym.Env):
         if not done:
             box2 = gb.get_box2(self.clip(self.SANITATION))
             self.V[self.SANITATION] += box2
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.SANITATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.SANITATION] > 29 else self.etl[" too low. "]
@@ -299,15 +301,17 @@ class OekoEnv(gym.Env):
         if not done:
             box3 = gb.get_box3(self.clip(self.PRODUCTION))
             self.V[self.PRODUCTION] += box3
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.PRODUCTION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.PRODUCTION] > 29 else self.etl[" too low. "]
                 done_info = self.dtl["Production"] + l
-                done_reason_detail = f"{self.V[self.SANITATION]} {OOR} (1, ..., 29)."
+                done_reason_detail = f"{self.V[self.PRODUCTION]} {OOR} (1, ..., 29)."
 
         if not done:
             box4 = gb.get_box4(self.clip(self.PRODUCTION))
             self.V[self.ENVIRONMENT] += box4
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -317,6 +321,7 @@ class OekoEnv(gym.Env):
         if not done:
             box5 = gb.get_box5(self.clip(self.ENVIRONMENT))
             self.V[self.ENVIRONMENT] += box5
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.ENVIRONMENT] > 29 else self.etl[" too low. "]
@@ -326,6 +331,7 @@ class OekoEnv(gym.Env):
         if not done:
             box6 = gb.get_box6(self.clip(self.ENVIRONMENT))
             self.V[self.QUALITY_OF_LIFE] += box6
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -335,6 +341,7 @@ class OekoEnv(gym.Env):
         if not done:
             box7 = gb.get_box7(self.clip(self.EDUCATION))
             self.V[self.EDUCATION] += box7
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.EDUCATION] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.EDUCATION] > 29 else self.etl[" too low. "]
@@ -344,6 +351,7 @@ class OekoEnv(gym.Env):
         if not done:
             box8 = gb.get_box8(self.clip(self.EDUCATION))
             self.V[self.QUALITY_OF_LIFE] += box8
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -358,6 +366,7 @@ class OekoEnv(gym.Env):
                 extra_points = 0
             box9 = gb.get_box9(self.V[self.EDUCATION], extra_points)
             self.V[self.POPULATION_GROWTH] += box9
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.POPULATION_GROWTH] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.POPULATION_GROWTH] > 29 else self.etl[" too low. "]
@@ -367,6 +376,7 @@ class OekoEnv(gym.Env):
         if not done:
             box10 = gb.get_box10(self.clip(self.QUALITY_OF_LIFE))
             self.V[self.QUALITY_OF_LIFE] += box10
+            self.V = np.clip(self.V, self.Vmin, self.Vmax) # HARDENING
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
                 l = self.etl[" too high. "] if self.V[self.QUALITY_OF_LIFE] > 29 else self.etl[" too low. "]
@@ -412,9 +422,8 @@ class OekoEnv(gym.Env):
 
         return self.V, done, done_info, done_reason_detail
 
-    def clip(self, s: int):
-        v = min(max(self.V[s], int(self.Vmin[s])), int(self.Vmax[s]))
-        return v
+    def clip(self, s: int) -> np.int32:
+        return np.clip(self.V[s], self.Vmin[s], self.Vmax[s])
 
     def step(self, action):
         clipping = True
@@ -596,11 +605,11 @@ class OekoEnv(gym.Env):
 
     def reset(self, options=None, seed=None):
         if options is not None and "v" in options:
-            self.V = np.array(options["v"])  # non-default initial values v
+            self.V = np.array(options["v"], dtype=np.int32)  # non-default initial values v
         else:
             self.V = self.get_initial_v()
 
-        self.curr_action = np.zeros(self.action_space.shape[0], 'int64')
+        self.curr_action = np.zeros(self.action_space.shape[0], dtype=np.int32)
         self.curr_result = self.V.copy()
 
         self.done = False

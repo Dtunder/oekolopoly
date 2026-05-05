@@ -1,121 +1,28 @@
-# --------------------------------------------------------------------------------------------------------
-#    Ökolopoly GUI created by Alexander Albers, Wolfgang Konen
-#        German or English version depending on command line argument
-#               python -m oekol_lang_gui --language "de"        (default) - or -
-#               python -m oekol_lang_gui --language "en"
-# --------------------------------------------------------------------------------------------------------
-# import random
-# import uuid
-import argparse
-
 import os
+import sys
+import numpy as np
+import gymnasium as gym
+import pygame
+import logging
+import copy
+import argparse
+from pygame.math import Vector2
+
+# Performance & Stability Environment Setup
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
-
-import gymnasium as gym
-import logging
-from typing import List, Tuple, Optional, Any
-import copy
-from pygame.math import Vector2
-import numpy as np
-from sb3_contrib import RecurrentPPO
-import torch
-torch.set_num_threads(1)
-torch.set_grad_enabled(False)
-
-# WATERPROOF MONKEY PATCH for LSTM
-import torch.nn as nn
-original_lstm_init = nn.LSTM.__init__
-def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
-    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
-nn.LSTM.__init__ = patched_lstm_init
 
 # Configure Professional Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("SovereignChampion")
 
-# Define Absolute Root Path for Bulletproof Execution
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT_DIR)
 
 from translator import dict_translate, dict_help_screens
+from summary_generator import SummaryGenerator
 import oekolopoly.oekolopoly
-import pygame
-
-class SovereignGuardian:
-    def __init__(self, env):
-        self.env = env
-
-    def get_final_action(self, avail):
-        V = self.env.unwrapped.V
-        dist = np.zeros(5, dtype=int)
-        reasons = []
-        
-        # 1. CORE INVESTMENTS
-        if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
-            reasons.append(f"Core: Education yield (+{d}).")
-            
-        # 2. SURVIVAL TARGETS
-        p_target = 13
-        p_dist = p_target - int(V[1])
-        if avail > 0:
-            d = min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
-            reasons.append(f"Adaptive: Target Prod {p_target}.")
-            
-        # 3. ALCHEMIST BURN (Avoid 35)
-        while avail + int(V[9]) > 28:
-            changed = False
-            if int(V[2]) + dist[2] < 29:
-                dist[2] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Education.")
-            elif int(V[3]) + dist[3] < 18:
-                dist[3] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Raising QoL.")
-            elif int(V[4]) + dist[4] < 15:
-                dist[4] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Population.")
-            elif V[5] < 12:
-                if int(V[1]) + dist[1] < 18:
-                    dist[1] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Increasing Prod to balance clean Env.")
-                else: break
-            elif V[5] > 20:
-                if int(V[0]) + dist[0] < 25:
-                    dist[0] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Cleaning Env.")
-            else:
-                if int(V[1]) + dist[1] > 5:
-                    dist[1] -= 1; avail -= 1; changed = True
-                    reasons.append("Burn: Sabotaging Prod (Safe sink).")
-                else: break
-            if avail + int(V[9]) <= 28: break
-
-        final = [int(dist[0]), int(dist[1]), int(dist[2]), int(dist[3]), int(dist[4]), 0]
-        if V[6] > 32: final[5] = -4; reasons.append("Pop: Control birth.")
-        elif V[6] < 18: final[5] = 5; reasons.append("Pop: Stimulate growth.")
-        return final, " | ".join(reasons)
-
-    def predict_future(self, start_action, steps=5):
-        import copy
-        temp_env = copy.deepcopy(self.env)
-        trajectory = []
-        for _ in range(steps):
-            # Formulate action for step
-            avail = temp_env.unwrapped.V[temp_env.unwrapped.POINTS]
-            # Use a slightly simplified version of the logic for speed
-            act, _ = self.get_final_action(avail)
-            
-            # Step env
-            action_for_env = list(act)
-            action_for_env[temp_env.unwrapped.PRODUCTION] -= temp_env.unwrapped.Amin[temp_env.unwrapped.PRODUCTION]
-            action_for_env[5] -= temp_env.unwrapped.Amin[5]
-            obs, _, term, trunc, _ = temp_env.unwrapped.step(action_for_env)
-            V_next = obs + temp_env.unwrapped.Vmin
-            trajectory.append(V_next)
-            if term or trunc: break
-        return trajectory
+from run_champion import SovereignGuardian, lazy_load_torch
 
 color_red = (220, 60, 60)
 color_yellow = (230, 190, 50)  # Golden Yellow
@@ -371,18 +278,30 @@ class Game:
             
         self.env = gym.make('Oekolopoly-v2', language=args.language)
         self.agent_obs, _ = self.env.reset()
-        model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion.zip")
-        if not os.path.exists(model_path):
-            logger.error(f"CRITICAL: Model file {model_path} not found!")
-            sys.exit(1)
-        self.agent = RecurrentPPO.load(model_path, device='cpu')
+        
+        # Load AI lazily to avoid hangs
+        self.use_ai = True
+        self.agent = None
         self.lstm_states = None
         self.episode_starts = np.ones((1,), dtype=bool)
-        self.current_action = [0, 0, 0, 0, 0, 0]
+        
+        try:
+            torch, RecurrentPPO = lazy_load_torch()
+            if RecurrentPPO:
+                model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion.zip")
+                self.agent = RecurrentPPO.load(model_path, device='cpu')
+            else:
+                self.use_ai = False
+        except Exception as e:
+            logger.warning(f"AI load failed: {e}. Falling back to Heuristic.")
+            self.use_ai = False
+
+        self.guardian = SovereignGuardian(self.env)
         self.all_actions = []
-        self.action_font = pygame.font.SysFont('Times New Roman', 30)
-        self.game_loop = True
+        self.current_action = [0, 0, 0, 0, 0, 0]
         self.done = False
+        self.year = 0
+        self.reasoning = "Initializing Sovereign Champion..."
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
         self.special_action = False
         self.special_action_points = 5
@@ -539,6 +458,10 @@ class Game:
         self.toggle_game_features()
         self.sovereign_reasoning_label = Label(Vector2(600, 630), Vector2(1000, 30), camera, "Sovereign AI Reasoning will appear here...", 18, color_light_blue)
         self.prediction_label = Label(Vector2(600, 670), Vector2(1000, 30), camera, "", 16, color_yellow)
+
+        self.state_history = [self.env.unwrapped.V.copy()]
+        # Draw live dashboard on top center
+        self.live_graph = LiveGraph(Vector2(10, 10), Vector2(400, 200), camera)
 
     def check_button_press(self):
         if not self.help_screen.active:
@@ -707,25 +630,8 @@ class Game:
         )
         self.episode_starts = np.zeros((1,), dtype=bool)
         
-        a_for_env = transf_act_box(self.env, agent_action[0])
-        a_for_env = [int(a_for_env[i]) for i in range(a_for_env.size)]
-        self.current_action = a_for_env
-        for i in range(len(a_for_env)-1):
-            self.available_actionpoints -= abs(a_for_env[i])
-        self.special_action_points = 5 - abs(self.current_action[5])
-
-    def sovereign_move(self) -> None:
-        guardian = SovereignGuardian(self.env)
-        a_for_env, reason = guardian.get_final_action(int(self.env.unwrapped.V[self.env.unwrapped.POINTS]))
-        self.current_action = a_for_env
-        self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
-        for i in range(5):
-            self.available_actionpoints -= abs(a_for_env[i])
-        self.special_action_points = 5 - abs(self.current_action[5])
-        self.sovereign_reasoning_label.text = f"{self.dtl['Reasoning']}: {reason}"
-        
         # Predictive Analytics
-        trajectory = guardian.predict_future(a_for_env, steps=5)
+        trajectory = self.guardian.predict_future(agent_action, steps=5)
         pred_text = f"{self.dtl['Prediction']}: "
         for i, v in enumerate(trajectory):
             pred_text += f"Y{int(v[8])}:[Env:{int(v[5])}, QoL:{int(v[3])}] "
@@ -807,64 +713,66 @@ class Game:
         else:
             self.help_screen.max_help_steps = 7
 
+    def sovereign_move(self):
+        """Executes one year of simulation using the Sovereign Champion AI/Heuristic."""
+        if self.done: return
+        
+        V = self.env.unwrapped.V
+        avail = int(V[9])
+
+        if self.use_ai and self.agent:
+            # Full Hybrid mode
+            obs_batch = np.array([self.agent_obs])
+            action, self.lstm_states = self.agent.predict(obs_batch, state=self.lstm_states, episode_start=self.episode_starts, deterministic=True)
+            self.episode_starts = np.zeros((1,), dtype=bool)
+            final_action, reasons = self.guardian.get_final_action(action, avail)
+        else:
+            # Pure Heuristic Zen Logic (V290)
+            final_action, reasons = self.guardian.get_final_action(None, avail)
+
+        self.reasoning = ", ".join(reasons) if reasons else "Stability maintained."
+        self.sovereign_reasoning_label.text = f"Sovereign: {self.reasoning}"
+
+        # Execute step
+        self.agent_obs, reward, terminated, truncated, info = self.env.step(final_action)
+        self.year = int(self.env.unwrapped.V[8])
+        self.state_history.append(self.env.unwrapped.V.copy())
+        self.live_graph.update_data(self.state_history)
+        
+        if terminated or truncated:
+             self.done = True
+             self.handle_game_over(info)
+
+    def handle_game_over(self, info: dict):
+        """Processes the end of a game and saves a report."""
+        logger.info(f"Simulation Terminated. Reason: {info.get('done_reason')}")
+        self.reasoning = f"Simulation ended: {info.get('done_reason')}"
+        
+        # Generate Summary
+        try:
+            generator = SummaryGenerator(self.state_history, dict_translate.get("en", {}))
+            os.makedirs(os.path.join(ROOT_DIR, "reports"), exist_ok=True)
+            generator.generate_svg(os.path.join(ROOT_DIR, "reports", "simulation_summary.svg"))
+            logger.info("Simulation summary SVG generated in /reports folder.")
+        except Exception as e:
+            logger.error(f"Failed to generate summary: {e}")
+
     def run_simulation(self):
         """Standard human step execution with logging."""
         info = self.env.unwrapped.check_move(self.current_action)
         if info['valid_move']:
             logger.info(f"Executing Move: {self.current_action}")
             self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
+            self.state_history.append(self.env.unwrapped.V.copy())
+            self.live_graph.update_data(self.state_history)
             self.all_actions.append(self.current_action)
             self.reset_current_action()
             if self.done:
-                logger.info(f"Simulation Terminated. Reason: {info.get('done_reason')}")
                 self.handle_game_over(info)
         else:
             self.console_label.text = info['invalid_move_info']
 
-    def handle_game_over(self, info: dict):
-        """Processes the end of a game, calculates harmony, and saves a report."""
-        V = self.env.unwrapped.V
-        year = int(V[8])
-        if year >= 30:
-            grade, penalty = self.calculate_harmony_score()
-            msg = f"VICTORY! {self.dtl['HarmonyGrade']}: {grade} ({self.dtl['Penalty']}: {penalty:.1f})"
-            self.console_label.text = msg
-            logger.info(msg)
-            self.save_victory_report(grade, penalty)
-        else:
-            self.console_label.text = f"GAME OVER: {info.get('done_reason')}"
-
-    def calculate_harmony_score(self) -> Tuple[str, float]:
-        """Calculates the final harmony grade based on V106 standards."""
-        V = self.env.unwrapped.V
-        # Penalties relative to ideal targets
-        q_p = abs(V[3] - 15)
-        e_p = abs(V[5] - 15)
-        ed_p = 29 - V[2]
-        p_p = abs(V[6] - 25)
-        total_penalty = q_p + e_p + ed_p + p_p
-        
-        grade = "D"
-        if total_penalty < 5: grade = "A+"
-        elif total_penalty < 10: grade = "A"
-        elif total_penalty < 15: grade = "B"
-        elif total_penalty < 20: grade = "C"
-        return grade, float(total_penalty)
-
-    def save_victory_report(self, grade: str, penalty: float):
-        """Saves a detailed report of the successful run."""
-        reports_dir = os.path.join(ROOT_DIR, "reports")
-        if not os.path.exists(reports_dir):
-            os.makedirs(reports_dir)
-        V = self.env.unwrapped.V
-        report_path = os.path.join(reports_dir, f"victory_{int(V[8])}_years_{grade}.txt")
-        with open(report_path, "w") as f:
-            f.write("--- SOVEREIGN CHAMPION VICTORY REPORT ---\n")
-            f.write(f"Grade: {grade}\nPenalty: {penalty:.2f}\n")
-            f.write(f"Final States: {V.tolist()}\n")
-            f.write(f"Total Steps: {len(self.all_actions)}\n")
-        logger.info(f"Victory report saved to {report_path}")
-
+=======
     def reset_current_action(self):
         self.current_action = [0, 0, 0, 0, 0, 0]
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
@@ -889,6 +797,8 @@ class Game:
         # self.preview_mode = False
         self.predict_usages = self.max_predict_usages
         self.predict_used = False
+        self.state_history = [self.env.unwrapped.V.copy()]
+        self.live_graph.update_data(self.state_history)
         self.lstm_states = None
         self.episode_starts = np.ones((1,), dtype=bool)
         self.toggle_game_features()
@@ -901,46 +811,37 @@ class Button(pygame.sprite.Sprite):
                             size.y / 1080 * pygame.display.get_window_size()[1])
         self.image = pygame.Surface(self.size)
         self.image.fill(color)
+>>>>>>> origin/sovereign-live-dashboard-4108670900735929
         self.color = color
-        self.camera = camera
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (
-            pos.x / 1920 * pygame.display.get_window_size()[0], pos.y / 1080 * pygame.display.get_window_size()[1])
-        self.is_pressed = False
-        self.font_size = int(font_size / 1920 * pygame.display.get_window_size()[0])
-        self.button_text_font = pygame.font.SysFont('Times New Roman', self.font_size)
         self.text = text
-        self.visible = True
+        self.font = font
 
-    def update(self, *args, **kwargs):
-        if self.visible:
-            self.draw()
-        else:
-            self.image = pygame.Surface(Vector2(0, 0))
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.color, self.rect)
+        pygame.draw.rect(surface, (255, 255, 255), self.rect, 2) # border
+        img = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = img.get_rect(center=self.rect.center)
+        surface.blit(img, text_rect)
 
-    def draw(self):
-        self.image = pygame.Surface(self.size)
-        self.image.fill(self.color)
-        text_position = (self.size.y - self.font_size - 5) / 2
-        self.image.blit(self.button_text_font.render(f"{self.text}", True, (250, 250, 250)),
-                        (10 / 1920 * pygame.display.get_window_size()[0], text_position))
-        pygame.draw.rect(self.image, (240, 240, 240), pygame.Rect((0, 0), self.size), 1)
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
 
-    def button_pressed(self) -> bool:
-        if not self.visible:
-            return False
-        pressed = False
-        button_rect = pygame.Rect(self.rect)
-        button_rect.topleft += self.camera.offset
-        if button_rect.collidepoint(pygame.mouse.get_pos()):
-            if pygame.mouse.get_pressed()[0] == 1 and not self.is_pressed:
-                self.is_pressed = True
-                pressed = True
-        if pygame.mouse.get_pressed()[0] == 0:
-            self.is_pressed = False
-        return pressed
+class ModernGUI:
+    def __init__(self, use_ai=False):
+        pygame.init()
+        self.screen = pygame.display.set_mode((1024, 768))
+        pygame.display.set_caption("Sovereign Champion GUI (V2.1 - Analytics Integrated)")
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont('Arial', 24)
+        self.state = GameStateManager(use_ai=use_ai)
+        self.running = True
 
+        # Setup UI Elements
+        self.btn_ai_step = Button((50, 50, 150, 50), (60, 60, 120), "AI Step", self.font)
 
+<<<<<<< HEAD
+    def process_events(self):
+=======
 class Label(pygame.sprite.Sprite):
     def __init__(self, pos, size, camera, text, font_size, background_color, variable_text=""):
         super().__init__(camera)
@@ -1078,6 +979,80 @@ class Diagram(pygame.sprite.Sprite):
             font = pygame.font.SysFont('Times New Roman', int(50 / 1920 * pygame.display.get_window_size()[0]))
             self.image.blit(font.render("?", True, color_black), (5, 115 / 1920 * pygame.display.get_window_size()[0]))
             pygame.draw.rect(self.image, color_black, pygame.Rect((0, 0), self.size), 2)
+
+
+class LiveGraph(pygame.sprite.Sprite):
+    def __init__(self, pos, size, camera):
+        super().__init__(camera)
+        self.camera = camera
+        self.base_size = size
+        # Scale according to window size
+        self.size = Vector2(size.x / 1920 * pygame.display.get_window_size()[0],
+                            size.y / 1080 * pygame.display.get_window_size()[1])
+        self.image = pygame.Surface(self.size)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (
+            pos.x / 1920 * pygame.display.get_window_size()[0],
+            pos.y / 1080 * pygame.display.get_window_size()[1]
+        )
+        self.state_history = []
+        self.font = pygame.font.SysFont('Arial', int(14 / 1920 * pygame.display.get_window_size()[0]))
+        self.visible = True
+        self.draw()
+
+    def update_data(self, state_history):
+        self.state_history = state_history
+        self.draw()
+
+    def update(self, *args, **kwargs):
+        if self.visible:
+            pass # Drawing is triggered by data updates
+        else:
+            self.image = pygame.Surface(Vector2(0, 0))
+
+    def draw(self):
+        self.image.fill(color_white)
+        pygame.draw.rect(self.image, color_yellow, pygame.Rect(0, 0, self.size.x, self.size.y), 2)
+
+        # Title and Legend
+        self.image.blit(self.font.render("Live Dashboard: Edu (Blue), QoL (Green), Env (Red)", True, color_black), (10, 5))
+
+        if not self.state_history or len(self.state_history) < 2:
+            return
+
+        # Mapping: Edu -> V[2], QoL -> V[3], Env -> V[5]
+        max_val = 35 # Typical maximum value to display
+        min_val = 0
+
+        # Dimensions for drawing the graph
+        padding = 30
+        graph_width = self.size.x - 2 * padding
+        graph_height = self.size.y - 2 * padding
+
+        num_points = max(30, len(self.state_history)) # Scale x-axis for 30 years or more
+
+        def get_pos(i, val):
+            x = padding + (i / num_points) * graph_width
+            y = self.size.y - padding - ((val - min_val) / (max_val - min_val)) * graph_height
+            return (x, y)
+
+        edu_pts = []
+        qol_pts = []
+        env_pts = []
+
+        for i, V in enumerate(self.state_history):
+            edu_pts.append(get_pos(i, V[2]))
+            qol_pts.append(get_pos(i, V[3]))
+            env_pts.append(get_pos(i, V[5]))
+
+        if len(edu_pts) >= 2:
+            pygame.draw.lines(self.image, color_blue, False, edu_pts, 2)
+            pygame.draw.lines(self.image, color_green, False, qol_pts, 2)
+            pygame.draw.lines(self.image, color_red, False, env_pts, 2)
+
+        # Draw axes
+        pygame.draw.line(self.image, color_black, (padding, self.size.y - padding), (self.size.x - padding, self.size.y - padding), 1)
+        pygame.draw.line(self.image, color_black, (padding, padding), (padding, self.size.y - padding), 1)
 
 
 class ActionInput:
@@ -1351,71 +1326,23 @@ def main():
 
     game_loop = True
     while game_loop:
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game_loop = False
-
             if event.type == pygame.MOUSEWHEEL:
                 camera.mouse_zoom(event.y)
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_TAB:
-                    camera.show_background = not camera.show_background
-                if event.key == pygame.K_1:
-                    camera.bg_selector = (camera.bg_selector + 1) % len(camera.background)
-                    # print(f"bg_selector = {camera.bg_selector}")
-
-        # update game
+        camera.keyboard_movement()
+        camera.custom_draw()
         game.update()
+        
         if not game.game_loop:
             game_loop = False
 
-        # print(pygame.mouse.get_pos())
-
-        camera.keyboard_movement()
-
-        # draw
-        camera.custom_draw()
-        camera.update()
-
-        # update window
-        pygame.display.update()
+        pygame.display.flip()
         clock.tick(fps)
 
-    # prepare and send email
-    email = ""
-    history_text = get_text_from_file("bin/game_history.txt")
-    if len(history_text) > 0:
-        email += history_text
-        with open("bin/game_history.txt", "w") as file:
-            file.write("")
-    feedback_text = get_text_from_file("bin/feedback.txt")
-    if len(feedback_text) > 0:
-        email += f"\nFeedback\n {feedback_text}"
-        with open("bin/feedback.txt", "w") as file:
-            file.write("")
+    pygame.quit()
 
-    # if len(email) > 12:
-    #     # login for email
-    #     sender = smtplib.SMTP("smtp.web.de", 587)
-    #     sender.ehlo()
-    #     sender.starttls()
-    #     sender.ehlo()
-    #     sender.login("user", "password")
-    #
-    #     mail = MIMEText(email)
-    #     mail['Subject'] = game.config
-    #     mail['From'] = "Me <emailaddress>"
-    #     mail['To'] = "emailaddress"
-    #
-    #     sender.send_message(mail)
-    #     sender.close()
-
-    # delete current game history
-    with open("bin/current_game_history.txt", "w") as file:
-        file.write("")
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
