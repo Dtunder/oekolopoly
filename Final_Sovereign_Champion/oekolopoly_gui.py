@@ -108,7 +108,7 @@ class SovereignGuardian:
             act, _ = self.get_final_action(avail)
             
             # Step env
-            action_for_env = list(act)
+            action_for_env = np.array(act, dtype=np.int64)
             action_for_env[temp_env.unwrapped.PRODUCTION] -= temp_env.unwrapped.Amin[temp_env.unwrapped.PRODUCTION]
             action_for_env[5] -= temp_env.unwrapped.Amin[5]
             obs, _, term, trunc, _ = temp_env.unwrapped.step(action_for_env)
@@ -695,6 +695,7 @@ class Game:
         if self.preview_mode:
             self.preview_action()
 
+    @torch.no_grad()
     def predict_next_move(self) -> None:
         obs_for_agent = self.agent_obs + self.env.unwrapped.Vmin
         # Handle recurrent predict (expects batch dimension)

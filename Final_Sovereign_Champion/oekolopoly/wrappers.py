@@ -367,12 +367,12 @@ class OekoActionBuilderWrapper(gym.ActionWrapper):
             return mask
 
         # Basic sector validations
-        inc_san_valid = (self.env.unwrapped.V[0] + self._current_action_dict['Sanitation'] + 1) <= self.env.unwrapped.Vmax[0]
-        inc_prod_valid = (self.env.unwrapped.V[1] + self._current_action_dict['Production'] + 1) <= self.env.unwrapped.Vmax[1]
-        dec_prod_valid = (self.env.unwrapped.V[1] + self._current_action_dict['Production'] - 1) >= self.env.unwrapped.Vmin[1]
-        inc_edu_valid = (self.env.unwrapped.V[2] + self._current_action_dict['Education'] + 1) <= self.env.unwrapped.Vmax[2]
-        inc_qol_valid = (self.env.unwrapped.V[3] + self._current_action_dict['Quality of Life'] + 1) <= self.env.unwrapped.Vmax[3]
-        inc_pg_valid = (self.env.unwrapped.V[4] + self._current_action_dict['Population Growth'] + 1) <= self.env.unwrapped.Vmax[4]
+        inc_san_valid = (self._current_action_dict['Sanitation'] + 1) <= self.env.unwrapped.Amax[0]
+        inc_prod_valid = (self._current_action_dict['Production'] + 1) <= self.env.unwrapped.Amax[1]
+        dec_prod_valid = (self._current_action_dict['Production'] - 1) >= self.env.unwrapped.Amin[1]
+        inc_edu_valid = (self._current_action_dict['Education'] + 1) <= self.env.unwrapped.Amax[2]
+        inc_qol_valid = (self._current_action_dict['Quality of Life'] + 1) <= self.env.unwrapped.Amax[3]
+        inc_pg_valid = (self._current_action_dict['Population Growth'] + 1) <= self.env.unwrapped.Amax[4]
 
         return np.array([
             next_round_valid, inc_san_valid, inc_prod_valid, dec_prod_valid,
@@ -403,7 +403,7 @@ class OekoActionBuilderWrapper(gym.ActionWrapper):
                 self._current_action_dict["Quality of Life"],
                 self._current_action_dict["Population Growth"],
                 self._current_action_dict["Population Growth extra"],
-            ])
+            ], dtype=np.int64)
             # The underlying environment adds self.Amin, so we must compensate
             act_to_pass -= self.env.unwrapped.Amin
             
