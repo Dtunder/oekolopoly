@@ -95,7 +95,8 @@ def run_sovereign() -> None:
         episode_starts = np.ones((1,), dtype=bool)
         
         for year in range(35):
-            action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
+            with torch.no_grad():
+                action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts, deterministic=True)
             final_action = guardian.get_final_action(action, int(base_env.unwrapped.V[9]))
             obs, reward, terminated, truncated, info = base_env.step(final_action)
             episode_starts = np.zeros((1,), dtype=bool)
