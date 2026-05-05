@@ -39,8 +39,9 @@ def lazy_load_torch():
     return torch, RecurrentPPO
 
 # Define Absolute Root Path for Bulletproof Execution
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(ROOT_DIR)
+# Ensure paths are relative to the project root (one level up from src)
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(ROOT_DIR, "src"))
 os.chdir(ROOT_DIR) # Force working directory to script location
 
 from translator import dict_translate, dict_help_screens
@@ -532,12 +533,24 @@ class Game:
             action_points_label, sanitation_label, production_label, environment_label, education_label,
             quality_of_life_label, population_growth_label, population_label, politic_label, self.current_action_label)
             
-        # MCTS Engine Initialization
-        self.torch_lib, self.ppo_class = lazy_load_torch()
-        model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion.zip")
-        self.ppo_model = self.ppo_class.load(model_path, device='cpu')
-        self.mcts_engine = SovereignMCTS(self.ppo_model, num_simulations=100)
-        self.guardian = SovereignGuardian(self.env)
+        # MCTS Engine Initialization (Robust)
+        try:
+            self.torch_lib, self.ppo_class = lazy_load_torch()
+            model_path = os.path.join(ROOT_DIR, "src", "sota_recurrent_champion.zip")
+            if not os.path.exists(model_path):
+                # Fallback to current dir
+                model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion.zip")
+            
+            logger.info(f"Loading AI Model from: {model_path}")
+            self.ppo_model = self.ppo_class.load(model_path, device='cpu')
+            self.mcts_engine = SovereignMCTS(self.ppo_model, num_simulations=100)
+            self.guardian = SovereignGuardian(self.env)
+            logger.info("Sovereign AI Engines initialized successfully.")
+        except Exception as e:
+            logger.error(f"AI Initialization Failed: {e}")
+            self.mcts_engine = None
+            self.guardian = None
+            self.sovereign_button.color = color_red # Visually indicate AI is offline
         
         self.more_info_labels = (
             more_info_action_points, more_info_sanitation, more_info_production, more_info_environment,
@@ -738,6 +751,12 @@ class Game:
 
     def sovereign_move(self) -> None:
         """Executes a high-precision MCTS search to find the optimal move."""
+        if self.mcts_engine is None:
+            msg = "Sovereign AI is OFFLINE (Init Failed). Check logs."
+            logger.error(msg)
+            self.sovereign_reasoning_label.variable_text = msg
+            return
+
         logger.info("Sovereign AI is calculating the optimal trajectory...")
         
         # 1. Search for the best raw action using MCTS
