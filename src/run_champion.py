@@ -15,8 +15,8 @@ from typing import List, Tuple, Optional, Any
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("SovereignRunner")
 
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
+# os.environ["OMP_NUM_THREADS"] = "1"
+# os.environ["MKL_NUM_THREADS"] = "1"
 import torch
 
 # Priority paths for Nasuta's original work
@@ -115,7 +115,7 @@ def run_sovereign() -> None:
         base_env = gym.make("Oekolopoly-v2")
         base_env = OekoActionBuilderWrapper(base_env)
         
-        planner = SovereignMCTS(model, num_simulations=50, render_tree=True)
+        planner = SovereignMCTS(model, num_simulations=1000, render_tree=False)
     
         obs, _ = base_env.reset()
         
