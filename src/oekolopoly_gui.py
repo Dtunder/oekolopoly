@@ -752,7 +752,9 @@ class Game:
 
         action[temp_env.unwrapped.PRODUCTION] -= temp_env.unwrapped.Amin[temp_env.unwrapped.PRODUCTION]
         action[5] -= temp_env.unwrapped.Amin[5]
-        obs, rew, terminated, truncated, info = temp_env.unwrapped.step_w_o_clip(action)
+        import numpy as np
+        action_array = np.array(action, dtype=np.int64)
+        obs, rew, terminated, truncated, info = temp_env.unwrapped.step_w_o_clip(action_array)
         temp_V = obs + temp_env.unwrapped.Vmin
         done = terminated or truncated
         for diagram_index in range(len(self.diagrams)):
@@ -823,17 +825,21 @@ class Game:
 
     def run_simulation(self):
         """Standard human step execution with logging."""
-        info = self.env.unwrapped.check_move(self.current_action)
-        if info['valid_move']:
+        action_array = np.array(self.current_action, dtype=np.int64)
+        
+        try:
             logger.info(f"Executing Move: {self.current_action}")
-            self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
+            self.agent_obs, reward, self.done, truncated, info = self.env.step(action_array)
             self.all_actions.append(self.current_action)
             self.reset_current_action()
             if self.done:
-                logger.info(f"Simulation Terminated. Reason: {info.get('done_reason')}")
+                logger.info(f"Simulation Terminated.")
                 self.handle_game_over(info)
-        else:
-            self.console_label.text = info['invalid_move_info']
+        except Exception as e:
+            error_msg = f"Simulation Error: {e}"
+            logger.error(error_msg)
+            if hasattr(self, 'console_label'):
+                self.console_label.variable_text = error_msg
 
     def handle_game_over(self, info: dict):
         """Processes the end of a game, calculates harmony, and saves a report."""
@@ -842,11 +848,11 @@ class Game:
         if year >= 30:
             grade, penalty = self.calculate_harmony_score()
             msg = f"VICTORY! {self.dtl['HarmonyGrade']}: {grade} ({self.dtl['Penalty']}: {penalty:.1f})"
-            self.console_label.text = msg
+            self.console_label.variable_text = msg
             logger.info(msg)
             self.save_victory_report(grade, penalty)
         else:
-            self.console_label.text = f"GAME OVER: {info.get('done_reason')}"
+            self.console_label.variable_text = f"GAME OVER: {info.get('done_reason')}"
 
     def calculate_harmony_score(self) -> Tuple[str, float]:
         """Calculates the final harmony grade based on V106 standards."""
