@@ -25,75 +25,60 @@ _GLOBAL_SOVEREIGN_MODEL = None
 import time
 
 def guided_rollout_wrapper(self_wrapper):
-    """Uses the GLOBAL model reference with timing."""
-    start_sim = time.time()
+    """Uses a FAST heuristic for massive simulation throughput."""
     try:
-        global _GLOBAL_SOVEREIGN_MODEL
-        if _GLOBAL_SOVEREIGN_MODEL is None:
-            return -1000000
-            
-        temp_obs = self_wrapper.env.unwrapped.obs.copy()
-        mapping = {1: 0, 2: 1, 4: 2, 5: 3, 6: 4}
-        
+        temp_env = self_wrapper.env.unwrapped
         total_reward = 0
         d_done = False
         steps = 0
-        l_states = None
-        e_starts = np.ones((1,), dtype=bool)
         
-        while not d_done and steps < 15:
-            V = self_wrapper.env.unwrapped.V
-            avail = int(V[9])
+        while not d_done and steps < 30:
+            V = temp_env.V
+            # SYNC FIX: Access the wrapper's internal AP tracker if available
+            if hasattr(self_wrapper, '_available_action_points'):
+                avail = int(self_wrapper._available_action_points)
+            else:
+                avail = int(V[9])
             
-            if self_wrapper.env.unwrapped.done:
+            if temp_env.done:
                 break
-            
-            model_obs = temp_obs.copy()
-            if len(model_obs) >= 9:
-                model_obs[8] = min(model_obs[8], 30)
-            
-            # USE GLOBAL MODEL
-            act_vector, l_states = _GLOBAL_SOVEREIGN_MODEL.predict(model_obs, state=l_states, episode_start=e_starts, deterministic=False)
-            
+                
             valid_actions = self_wrapper.get_valid_actions()
             if not valid_actions: break
             
-            weights = np.ones(len(valid_actions))
-            for i, v_act in enumerate(valid_actions):
-                if v_act == 0:
-                    weights[i] = 0.0 if avail > 0 else 100.0
-                elif v_act in mapping:
-                    target_idx = mapping[v_act]
-                    if act_vector[target_idx] > 0: weights[i] = 20.0 
-                    if v_act == 5 and V[3] < 10: weights[i] += 500.0
-                    if v_act == 1 and V[5] < 12: weights[i] += 500.0
-                    if v_act == 2 and V[7] < 8:  weights[i] += 500.0
-            
-            if np.sum(weights) == 0: weights = np.ones(len(valid_actions))
-            weights /= np.sum(weights)
-            move = np.random.choice(valid_actions, p=weights)
+            # HEURISTIC SELECTION (Sovereign Guardian Style)
+            if avail > 0:
+                # Priority: Sanity (1) -> Prod (2) -> QoL (5) -> Edu (4)
+                if 1 in valid_actions and V[5] < 12: move = 1
+                elif 5 in valid_actions and V[3] < 10: move = 5
+                elif 2 in valid_actions and V[7] < 8: move = 2
+                elif 4 in valid_actions and V[4] < 10: move = 4
+                else: 
+                    # If no emergencies, pick random investment
+                    investments = [a for a in valid_actions if a != 0]
+                    move = np.random.choice(investments) if investments else 0
+            else:
+                move = 0 # Must end round
             
             obs_ext, rew, term, trunc, info = self_wrapper.step(move)
-            temp_obs = self_wrapper.env.unwrapped.obs.copy()
             
+            # Stability Reward
             stability = 30 - (np.max(V[:8]) - np.min(V[:8]))
             total_reward += stability + rew
             if move == 0: total_reward += 10000 
             
             d_done = term or trunc
             steps += 1
-            e_starts = np.zeros((1,), dtype=bool)
             
-        if d_done and not (int(self_wrapper.env.unwrapped.V[8]) >= 30):
+        if d_done and not (int(temp_env.V[8]) >= 30):
             total_reward -= 2000000 
             
-        print(f"Sim done in {time.time() - start_sim:.3f}s")
         return total_reward
     except Exception as e:
         return -5000000
 
 class SovereignMCTS:
-    def __init__(self, model, num_simulations=50, render_tree=True):
+    def __init__(self, model, num_simulations=1000, render_tree=True):
         """
         Initializes the Sovereign MCTS Planner.
         
@@ -138,7 +123,12 @@ class SovereignMCTS:
             
         def get_sovereign_valid_actions():
             mask = find_valid_mask()
-            avail = int(wrapped_env.env.unwrapped.V[9])
+            # SYNC FIX
+            if hasattr(wrapped_env, '_available_action_points'):
+                avail = int(wrapped_env._available_action_points)
+            else:
+                avail = int(wrapped_env.env.unwrapped.V[9])
+                
             valid = [i for i, v in enumerate(mask) if v]
             
             # HARD MASKING: Only remove Action 0 if there's SOMETHING ELSE to do
@@ -176,7 +166,16 @@ class SovereignMCTS:
         m_logger.info(" [SOVEREIGN DEEP THINKING TREE START]")
         sys.stdout.flush()
         
-        action = agent.vanilla_mcts_search(num_simulations=self.num_simulations)
+        try:
+            # Capture the search logic
+            action = agent.vanilla_mcts_search(num_simulations=self.num_simulations)
+        except Exception as e:
+            if "charmap" in str(e):
+                m_logger.warning(" [Encoding Error] Tree contains characters not supported by console. Falling back to simple best move.")
+                # We still want the best action even if tree printing fails
+                action = agent.search_root_node.get_best_action()
+            else:
+                raise e
         
         m_logger.info(" [SOVEREIGN DEEP THINKING TREE END]")
         m_logger.info("="*50)
