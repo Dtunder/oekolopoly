@@ -1,3 +1,4 @@
+import sys
 # --------------------------------------------------------------------------------------------------------
 #    Ökolopoly GUI created by Alexander Albers, Wolfgang Konen
 #        German or English version depending on command line argument
@@ -36,6 +37,7 @@ logger = logging.getLogger("SovereignChampion")
 
 # Define Absolute Root Path for Bulletproof Execution
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(ROOT_DIR)
 sys.path.append(ROOT_DIR)
 
 from translator import dict_translate, dict_help_screens
@@ -809,7 +811,15 @@ class Game:
 
     def run_simulation(self):
         """Standard human step execution with logging."""
-        info = self.env.unwrapped.check_move(self.current_action)
+        # Replaced check_move
+        used_points = sum(abs(x) for x in self.current_action)
+        # Exception for birth control
+        used_points -= abs(self.current_action[5])
+        if used_points <= self.env.unwrapped.V[self.env.unwrapped.POINTS]:
+            info = {"valid_move": True}
+        else:
+            info = {"valid_move": False}
+
         if info['valid_move']:
             logger.info(f"Executing Move: {self.current_action}")
             self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
