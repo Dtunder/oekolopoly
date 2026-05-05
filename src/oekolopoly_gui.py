@@ -96,9 +96,11 @@ class SovereignGuardian:
                 else: break
             if avail + int(V[9]) <= 28: break
 
-        final = [int(dist[0]), int(dist[1]), int(dist[2]), int(dist[3]), int(dist[4]), 0]
-        if V[6] > 32: final[5] = -4; reasons.append("Pop: Control birth.")
-        elif V[6] < 18: final[5] = 5; reasons.append("Pop: Stimulate growth.")
+        # Transform to GUI Index Space (0-56)
+        # Prod (index 1) needs +28, Special (index 5) needs +5
+        final = [int(dist[0]), int(dist[1]) + 28, int(dist[2]), int(dist[3]), int(dist[4]), 5]
+        if V[6] > 32: final[5] = 1; reasons.append("Pop: Control birth.") # 5 - 4 = 1
+        elif V[6] < 18: final[5] = 10; reasons.append("Pop: Stimulate growth.") # 5 + 5 = 10
         
         return final, " | ".join(reasons)
 
@@ -844,13 +846,11 @@ class Game:
         # The MultiDiscrete space is 0..N.
         # GUI uses 0..56 for production. Amin is -28.
         # So GUI 0 (min) -> index 0. GUI 28 (zero) -> index 28. GUI 56 (max) -> index 56.
-        # The env.step() will then add Amin (-28) to get the real value.
-        
-        # Current GUI action [0, 0, 8, 0, 0, 0] is ALREADY in the correct index space 
-        # for most fields, EXCEPT Production and Special which have offsets.
-        
-        # Let's use the provided helper:
+        import numpy as np
         action_array = np.array(self.current_action, dtype=np.int64)
+        # Transform points to internal Env space
+        action_array[1] -= self.env.unwrapped.Amin[1] # Production offset
+        action_array[5] -= self.env.unwrapped.Amin[5] # Special action offset
         
         try:
             logger.info(f"Executing Move: {self.current_action}")
