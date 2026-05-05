@@ -7,6 +7,7 @@
 # import random
 # import uuid
 import argparse
+import sys
 
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -809,10 +810,22 @@ class Game:
 
     def run_simulation(self):
         """Standard human step execution with logging."""
-        info = self.env.unwrapped.check_move(self.current_action)
-        if info['valid_move']:
+        temp_env = copy.deepcopy(self.env)
+        action = list(self.current_action)
+
+        # When checking validation via step_w_o_clip, we apply the same transformations as step() expects:
+        # BUT wait! step() itself does `action = action + Amin`. So `self.current_action` passed to `step` MUST NOT have Amin.
+        # However, SovereignGuardian outputs action directly without Amin (i.e. it outputs actual changes like [0, -1, ...]).
+        # Let's adjust action to what step() expects (which means subtracting Amin so step() can add it back).
+
+        action_for_env = list(self.current_action)
+        action_for_env[temp_env.unwrapped.PRODUCTION] -= temp_env.unwrapped.Amin[temp_env.unwrapped.PRODUCTION]
+        action_for_env[5] -= temp_env.unwrapped.Amin[5]
+
+        _, _, _, _, info = temp_env.unwrapped.step_w_o_clip(action_for_env)
+        if info.get('valid_move', False):
             logger.info(f"Executing Move: {self.current_action}")
-            self.agent_obs, reward, self.done, truncated, info = self.env.step(self.current_action)
+            self.agent_obs, reward, self.done, truncated, info = self.env.step(action_for_env)
             self.all_actions.append(self.current_action)
             self.reset_current_action()
             if self.done:
