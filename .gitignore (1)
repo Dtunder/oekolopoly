@@ -1,7 +1,0 @@
-__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.DS_Store
-*.zip
-!sota_recurrent_champion.zip
