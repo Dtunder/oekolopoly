@@ -1,7 +1,8 @@
 @echo off
 echo Starting Sovereign Champion (Oekolopoly-v2) Masterpiece Edition...
 echo Checking dependencies...
-pip install -r requirements.txt
+pip install -r tools/requirements.txt
 echo Launching GUI...
+cd src
 python oekolopoly_gui.py
 pause

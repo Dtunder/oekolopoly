@@ -45,6 +45,7 @@ os.chdir(ROOT_DIR) # Force working directory to script location
 
 from translator import dict_translate, dict_help_screens
 import oekolopoly.oekolopoly
+from mcts_planner import SovereignMCTS
 
 class SovereignGuardian:
     def __init__(self, env):
@@ -530,6 +531,14 @@ class Game:
         self.region_labels = (
             action_points_label, sanitation_label, production_label, environment_label, education_label,
             quality_of_life_label, population_growth_label, population_label, politic_label, self.current_action_label)
+            
+        # MCTS Engine Initialization
+        self.torch_lib, self.ppo_class = lazy_load_torch()
+        model_path = os.path.join(ROOT_DIR, "sota_recurrent_champion.zip")
+        self.ppo_model = self.ppo_class.load(model_path, device='cpu')
+        self.mcts_engine = SovereignMCTS(self.ppo_model, num_simulations=100)
+        self.guardian = SovereignGuardian(self.env)
+        
         self.more_info_labels = (
             more_info_action_points, more_info_sanitation, more_info_production, more_info_environment,
             more_info_education, more_info_quality_of_life, more_info_population_growth,
@@ -728,22 +737,30 @@ class Game:
         self.special_action_points = 5 - abs(self.current_action[5])
 
     def sovereign_move(self) -> None:
-        guardian = SovereignGuardian(self.env)
-        a_for_env, reason = guardian.get_final_action(int(self.env.unwrapped.V[self.env.unwrapped.POINTS]))
+        """Executes a high-precision MCTS search to find the optimal move."""
+        logger.info("Sovereign AI is calculating the optimal trajectory...")
+        
+        # 1. Search for the best raw action using MCTS
+        best_raw_action = self.mcts_engine.search(self.env)
+        
+        # 2. Map to final valid action using Guardian (returns Indices)
+        avail = int(self.env.unwrapped.V[self.env.unwrapped.POINTS])
+        a_for_env, reason = self.guardian.get_final_action(best_raw_action, avail)
+        
+        # 3. Update GUI state
         self.current_action = a_for_env
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
         for i in range(5):
-            self.available_actionpoints -= abs(a_for_env[i])
-        self.special_action_points = 5 - abs(self.current_action[5])
+            self.available_actionpoints -= abs(a_for_env[i] - (28 if i==1 else 0))
+        self.special_action_points = 5 - abs(self.current_action[5] - 5)
         
-        # CRITICAL FIX: Use .variable_text for dynamic updates, not .text!
-        self.sovereign_reasoning_label.variable_text = f" {self.dtl['Reasoning']}: {reason}"
+        self.sovereign_reasoning_label.variable_text = f" MCTS Selection: {reason}"
         
         # Predictive Analytics
-        trajectory = guardian.predict_future(a_for_env, steps=5)
+        trajectory = self.guardian.predict_future(a_for_env, steps=5)
         pred_text = f" {self.dtl['Prediction']}: "
-        for i, v in enumerate(trajectory):
-            pred_text += f"Y{int(v[8])}:[Env:{int(v[5])}, QoL:{int(v[3])}] "
+        for v in trajectory:
+            pred_text += f"Y{int(v[8])}:[E:{int(v[5])},Q:{int(v[3])}] "
         self.prediction_label.variable_text = pred_text
         
         self.run_simulation()
@@ -827,35 +844,13 @@ class Game:
 
     def run_simulation(self):
         """Standard human step execution with logging."""
-        # Convert GUI action (0-56) to Env action (-28 to 28)
-        # This is CRITICAL to fix the "36 action points used" bug!
-        import numpy as np
-        raw_action = np.array(self.current_action, dtype=np.int64)
-        
-        # Transform points: e.g. GUI 0 points -> Env -28 points
-        # But wait, we need to match the ActionSpace.
-        # Actually, the GUI logic already works in absolute points for internal state,
-        # but the env.step() expects RAW indices for MultiDiscrete.
-        
-        # Fix: The GUI should pass the action as is IF it's using the ActionBuilderWrapper,
-        # but here we use the base OekoEnv.
-        
-        # Correct logic: Subtract Amin from the human move to get the index.
-        action_for_env = raw_action.copy()
-        # Production is at index 1, Special is at index 5
-        # The MultiDiscrete space is 0..N.
-        # GUI uses 0..56 for production. Amin is -28.
-        # So GUI 0 (min) -> index 0. GUI 28 (zero) -> index 28. GUI 56 (max) -> index 56.
-        import numpy as np
+        # Actions are already indices (0-56), just pass them to env.step
         action_array = np.array(self.current_action, dtype=np.int64)
-        # Transform points to internal Env space
-        action_array[1] -= self.env.unwrapped.Amin[1] # Production offset
-        action_array[5] -= self.env.unwrapped.Amin[5] # Special action offset
         
         try:
             logger.info(f"Executing Move: {self.current_action}")
             self.agent_obs, reward, self.done, truncated, info = self.env.step(action_array)
-            self.all_actions.append(self.current_action)
+            self.all_actions.append(self.current_action.copy())
             self.reset_current_action()
             if self.done:
                 reason = info.get('done_reason', 'Unknown')
