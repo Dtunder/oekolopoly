@@ -58,6 +58,8 @@ class SystematicSovereign:
         wrapped_env = OekoActionBuilderWrapper(base_env, auxilary_reward=True)
         env = ActionHistoryMCTSGymEnvWrapper(wrapped_env, action_mask_fn=self.action_mask_fn)
         
+        import torch
+        
         # --- API BRIDGES (MUST BE BEFORE AGENT INIT) ---
         def is_terminal_bridge():
             return env.unwrapped.done
@@ -77,12 +79,16 @@ class SystematicSovereign:
             return valid_ids if valid_ids else [0]
             
         def sovereign_rollout():
-            import torch
             obs = env.unwrapped.obs
             obs_fixed = np.array([obs], dtype=np.float32)
             lstm_states = (torch.zeros(2, 1, 256), torch.zeros(2, 1, 256)) 
             episode_starts = torch.ones(1, dtype=torch.float32)
-            value = self.model.policy.predict_values(torch.as_tensor(obs_fixed), lstm_states, episode_starts)
+            # Add .detach() to stop grad tracking and fix warning
+            value = self.model.policy.predict_values(
+                torch.as_tensor(obs_fixed), 
+                lstm_states, 
+                episode_starts
+            ).detach()
             return float(value[0][0]) + 5.0
 
         env.is_terminal = is_terminal_bridge
@@ -90,14 +96,14 @@ class SystematicSovereign:
         env.rollout = sovereign_rollout
 
         # --- IMPORTANT: RESET BEFORE AGENT INIT ---
-        # This initializes the 'V' vector in the environment
         obs, _ = env.reset()
 
         # 2. create the agent AFTER environment is initialized
+        # Speed: 50 sims is enough for a live test
         agent = GymctsAgent(
             env=env,
             clear_mcts_tree_after_step=False,
-            number_of_simulations_per_step=1000,
+            number_of_simulations_per_step=50, 
             render_tree_after_step=False
         )
         
@@ -115,8 +121,8 @@ class SystematicSovereign:
             print(f"\n[Thinking...] Round {round_count} Strategy Calculation...")
             step_count = 0
             while True:
-                # 3. SYSTEMATIC STEP
-                best_action, next_node = agent.perform_mcts_step(num_simulations=1000)
+                # 3. SYSTEMATIC STEP (Fast: 50 sims)
+                best_action, next_node = agent.perform_mcts_step(num_simulations=50)
                 
                 print(f"  [MCTS] Action Selected: {best_action} (N={next_node.visit_count}, Q={next_node.mean_value:.2f})")
                 agent.show_mcts_tree(tree_max_depth=1)
