@@ -111,7 +111,7 @@ class SovereignGuardian:
             action_for_env = list(act)
             action_for_env[temp_env.unwrapped.PRODUCTION] -= temp_env.unwrapped.Amin[temp_env.unwrapped.PRODUCTION]
             action_for_env[5] -= temp_env.unwrapped.Amin[5]
-            obs, _, term, trunc, _ = temp_env.unwrapped.step(action_for_env)
+            obs, _, term, trunc, _ = temp_env.unwrapped.step(np.array(action_for_env, dtype=np.int64))
             V_next = obs + temp_env.unwrapped.Vmin
             trajectory.append(V_next)
             if term or trunc: break
@@ -699,12 +699,13 @@ class Game:
         obs_for_agent = self.agent_obs + self.env.unwrapped.Vmin
         # Handle recurrent predict (expects batch dimension)
         obs_batch = np.array([obs_for_agent])
-        agent_action, self.lstm_states = self.agent.predict(
-            obs_batch, 
-            state=self.lstm_states, 
-            episode_start=self.episode_starts, 
-            deterministic=True
-        )
+        with torch.inference_mode():
+            agent_action, self.lstm_states = self.agent.predict(
+                obs_batch,
+                state=self.lstm_states,
+                episode_start=self.episode_starts,
+                deterministic=True
+            )
         self.episode_starts = np.zeros((1,), dtype=bool)
         
         a_for_env = transf_act_box(self.env, agent_action[0])
