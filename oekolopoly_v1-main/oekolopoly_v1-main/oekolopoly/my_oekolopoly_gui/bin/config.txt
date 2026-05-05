@@ -1,0 +1,5 @@
+use_preview: 1
+use_predict: 1
+use_diagrams: 1
+group: 3
+predict_usages: 6
