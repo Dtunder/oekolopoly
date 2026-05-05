@@ -46,15 +46,18 @@ def guided_rollout_wrapper(self_wrapper):
             valid_actions = self_wrapper.get_valid_actions()
             if not valid_actions: break
             
-            # HEURISTIC SELECTION (Sovereign Guardian Style)
+            # HEURISTIC SELECTION (Survival-First Sovereign Logic)
             if avail > 0:
-                # Priority: Sanity (1) -> Prod (2) -> QoL (5) -> Edu (4)
-                if 1 in valid_actions and V[5] < 12: move = 1
-                elif 5 in valid_actions and V[3] < 10: move = 5
-                elif 2 in valid_actions and V[7] < 8: move = 2
-                elif 4 in valid_actions and V[4] < 10: move = 4
+                # 1. CRITICAL PROTECTION: Quality of Life (Protects Politics/Stability)
+                if 5 in valid_actions and V[3] < 15: move = 5
+                # 2. SYSTEMIC STABILITY: Production (Protects Economy/Politics)
+                elif 2 in valid_actions and V[7] < 10: move = 2
+                # 3. ENVIRONMENTAL RECOVERY: Sanitation
+                elif 1 in valid_actions and V[5] < 15: move = 1
+                # 4. EDUCATION (Long-term)
+                elif 4 in valid_actions and V[2] < 15: move = 4
                 else: 
-                    # If no emergencies, pick random investment
+                    # If stable, diversify
                     investments = [a for a in valid_actions if a != 0]
                     move = np.random.choice(investments) if investments else 0
             else:
@@ -131,8 +134,21 @@ class SovereignMCTS:
                 
             valid = [i for i, v in enumerate(mask) if v]
             
+            # SOVEREIGN GOVERNANCE: Hard Priority Rules
+            V_real = wrapped_env.env.unwrapped.V
+            
+            # RULE 1: If QoL is dangerously low, FORCE investment in QoL (Action 5)
+            if avail > 0 and V_real[3] < 10:
+                if 5 in valid:
+                    return [5]
+            
+            # RULE 2: If Politics is dangerously low, FORCE investment in Production (Action 2) 
+            # (Note: In v2 Production/Economy stabilizes Politics)
+            if avail > 0 and V_real[7] < 0:
+                if 2 in valid:
+                    return [2]
+            
             # HARD MASKING: Only remove Action 0 if there's SOMETHING ELSE to do
-            # and we still have points.
             if avail > 0 and 0 in valid and len(valid) > 1:
                 valid.remove(0)
             return valid
@@ -153,16 +169,25 @@ class SovereignMCTS:
         unwrapped_sim.obs = unwrapped_real.obs.copy()
         unwrapped_sim.done = unwrapped_real.done
         
-        # Sync ActionBuilder Wrapper State
-        if hasattr(env, '_available_action_points'):
-            wrapped_env._available_action_points = int(env._available_action_points)
-            wrapped_env._available_extra_points = int(env._available_extra_points)
-            # Copy the current action dictionary
-            for key in env._current_action_dict:
-                wrapped_env._current_action_dict[key] = env._current_action_dict[key]
-        else:
-            # Fallback for unwrapped envs
-            wrapped_env._available_action_points = int(unwrapped_real.V[9])
+        # Sync ActionBuilder Wrapper State (Robust layer search)
+        def sync_wrapper(src, dst):
+            s_curr = src
+            while s_curr is not None:
+                if hasattr(s_curr, '_current_action_dict'):
+                    d_curr = dst
+                    while d_curr is not None:
+                        if hasattr(d_curr, '_current_action_dict'):
+                            # SYNC FOUND!
+                            d_curr._available_action_points = int(s_curr._available_action_points)
+                            d_curr._available_extra_points = int(s_curr._available_extra_points)
+                            for key in s_curr._current_action_dict:
+                                d_curr._current_action_dict[key] = s_curr._current_action_dict[key]
+                            return True
+                        d_curr = getattr(d_curr, 'env', None)
+                s_curr = getattr(s_curr, 'env', None)
+            return False
+
+        sync_wrapper(env, wrapped_env)
         
         # Setup MCTS Agent with Nasuta's original parameters
         agent = GymctsAgent(
