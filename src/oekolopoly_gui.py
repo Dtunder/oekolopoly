@@ -39,13 +39,31 @@ def lazy_load_torch():
     return torch, RecurrentPPO
 
 # Define Absolute Root Path for Bulletproof Execution
-# Ensure paths are relative to the project root (one level up from src)
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(ROOT_DIR, "src"))
+NASUTA_ROOT = os.path.join(ROOT_DIR, "gymcts-games-main", "gymcts-games-main", "src")
+
+if NASUTA_ROOT not in sys.path:
+    sys.path.insert(0, NASUTA_ROOT)
+if os.path.join(ROOT_DIR, "src") not in sys.path:
+    sys.path.append(os.path.join(ROOT_DIR, "src"))
+
 os.chdir(ROOT_DIR) # Force working directory to script location
 
+# Module Bridge for Compatibility
+import oekolopoly.env.oeko_env as oeko_env
+sys.modules['oekolopoly.oekolopoly'] = oeko_env
+
+# Manual Gym Registration
+from gymnasium.envs.registration import register
+try:
+    register(
+        id='Oekolopoly-v2',
+        entry_point='oekolopoly.env.oeko_env:OekoEnv',
+    )
+except:
+    pass
+
 from translator import dict_translate, dict_help_screens
-import oekolopoly.oekolopoly
 from mcts_planner import SovereignMCTS
 
 class SovereignGuardian:
@@ -380,7 +398,7 @@ class Game:
         except Exception as e:
             logger.warning(f"Could not load custom icon: {e}")
             
-        self.env = gym.make('Oekolopoly-v2', language=args.language)
+        self.env = gym.make('Oekolopoly-v2')
         self.agent_obs, _ = self.env.reset()
         
         # Lazy Load Torch to prevent hangs

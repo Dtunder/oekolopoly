@@ -54,12 +54,16 @@ def watch_nasuta():
     planner = SovereignMCTS(model, num_simulations=100) # Balanced thinking
     
     obs, _ = env.reset()
+    done = False
+    step_num = 0
     
-    for round_num in range(35):
+    while not done:
+        step_num += 1
         # Render the board (ASCII) - Use unwrapped for render if needed
         print(env.env.render()) # Nasuta's original render
         
-        print(f"\n[Sovereign Champion is thinking about Round {round_num + 1}...]")
+        round_display = int(env.env.unwrapped.V[8]) + 1
+        print(f"\n[Sovereign Champion is thinking... (Action {step_num}, Round {round_display})]")
         
         # Get optimal action from MCTS
         # action is discrete (0-8)
