@@ -41,43 +41,39 @@ def watch_nasuta():
     print("   WATCHING NASUTA'S CHAMPION (ORIGINAL MODE)   ")
     print("====================================================")
     
-    # 1. Init Nasuta's specific Env
-    env = OekoEnv()
+    # 1. Init Nasuta's specific Env with Wrapper
+    from oekolopoly.env.oeko_env import OekoActionBuilderWrapper
+    base_env = OekoEnv()
+    env = OekoActionBuilderWrapper(base_env)
     
     # 2. Load Model
     model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
     model = RecurrentPPO.load(model_path, device='cpu')
     
     # 3. Create Planner
-    planner = SovereignMCTS(model, num_simulations=50) # Fast thinking for watching
-    guardian = SovereignGuardian(env)
+    planner = SovereignMCTS(model, num_simulations=100) # Balanced thinking
     
     obs, _ = env.reset()
     
     for round_num in range(35):
-        # Clear screen for animation effect
-        os.system('cls' if os.name == 'nt' else 'clear')
+        # Render the board (ASCII) - Use unwrapped for render if needed
+        print(env.env.render()) # Nasuta's original render
         
-        # Render the board (ASCII)
-        print(env.render())
+        print(f"\n[Sovereign Champion is thinking about Round {round_num + 1}...]")
         
-        print(f"\n[Nasuta is thinking about Round {round_num + 1}...]")
-        
-        # Get optimal action
+        # Get optimal action from MCTS
+        # action is discrete (0-8)
         action = planner.search(env)
-        avail = int(env.unwrapped.V[9])
-        final_action = guardian.get_final_action(action, avail)
         
-        print(f"Action Selection: {final_action}")
+        print(f"Strategic Action Selected: {action}")
         
-        # Step
-        obs, reward, terminated, truncated, info = env.step(final_action)
+        # Step in the wrapped environment
+        obs, reward, terminated, truncated, info = env.step(action)
         
-        time.sleep(1) # Wait a second so you can watch
+        time.sleep(0.5) 
         
         if terminated or truncated:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print(env.render())
+            print(env.env.render())
             print("\n--- SIMULATION TERMINATED ---")
             print(f"Reason: {info.get('done_reason')}")
             break
