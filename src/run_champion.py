@@ -128,6 +128,10 @@ def run_sovereign() -> None:
             # Step in the wrapped environment
             obs, reward, terminated, truncated, info = base_env.step(action)
             
+            # SOVEREIGN TELEMETRY: Monitor AP consumption
+            if hasattr(base_env, '_available_action_points'):
+                logger.info(f"Action {action} taken. Remaining AP: {base_env._available_action_points}")
+            
             # If the action was 'Next Round' (0), log the status
             if action == 0:
                 V = base_env.unwrapped.V

@@ -144,11 +144,25 @@ class SovereignMCTS:
         
         wrapped_env.reset()
         
-        # 5. STATE SYNC
-        wrapped_env.env.unwrapped.V = env.unwrapped.V.copy()
-        wrapped_env.env.unwrapped.obs = env.unwrapped.obs.copy()
-        if hasattr(wrapped_env, '_available_action_points'):
-            wrapped_env._available_action_points = int(env.unwrapped.V[9])
+        # 5. FULL STATE SYNC (Wrapper-Aware)
+        unwrapped_real = env.unwrapped
+        unwrapped_sim = wrapped_env.env.unwrapped
+        
+        # Sync Base Environment
+        unwrapped_sim.V = unwrapped_real.V.copy()
+        unwrapped_sim.obs = unwrapped_real.obs.copy()
+        unwrapped_sim.done = unwrapped_real.done
+        
+        # Sync ActionBuilder Wrapper State
+        if hasattr(env, '_available_action_points'):
+            wrapped_env._available_action_points = int(env._available_action_points)
+            wrapped_env._available_extra_points = int(env._available_extra_points)
+            # Copy the current action dictionary
+            for key in env._current_action_dict:
+                wrapped_env._current_action_dict[key] = env._current_action_dict[key]
+        else:
+            # Fallback for unwrapped envs
+            wrapped_env._available_action_points = int(unwrapped_real.V[9])
         
         # Setup MCTS Agent with Nasuta's original parameters
         agent = GymctsAgent(
