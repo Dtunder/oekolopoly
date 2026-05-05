@@ -55,7 +55,64 @@ class SovereignMCTS:
             
         wrapped_env.get_valid_actions = lambda: [i for i, valid in enumerate(find_valid_mask()) if valid]
         
-        # 4. RESET AFTER WRAPPING (Crucial for ActionBuilder initialization)
+        # 4. SOVEREIGN GUIDED ROLLOUTS (Neural Guidance)
+        def guided_rollout():
+            """Uses the RecurrentPPO model to play a meaningful future."""
+            # We don't call reset here because GymctsAgent handles the state
+            temp_obs = wrapped_env.env.unwrapped.obs.copy() # Get raw obs
+            
+            # Action Mapping (Nasuta-Discrete -> Vector Index)
+            # 1: San+, 2: Prod+, 4: Edu+, 5: QoL+, 6: PG+
+            mapping = {1: 0, 2: 1, 4: 2, 5: 3, 6: 4}
+            
+            total_reward = 0
+            d_done = False
+            steps = 0
+            l_states = None
+            e_starts = np.ones((1,), dtype=bool)
+            
+            while not d_done and steps < 25:
+                # 1. Get Model Intuition (The 'Vector' action)
+                # CLIP OBSERVATION FOR MODEL (Model only knows Rounds 0-30)
+                model_obs = temp_obs.copy()
+                if len(model_obs) >= 9:
+                    model_obs[8] = min(model_obs[8], 30)
+                
+                act_vector, l_states = self.model.predict(model_obs, state=l_states, episode_start=e_starts, deterministic=False)
+                
+                # 2. Translate Vector to the best Discrete Action
+                valid_actions = wrapped_env.get_valid_actions()
+                if not valid_actions: break
+                
+                # Biasing logic: If model wants to spend points in a category, prioritize that discrete action
+                weights = np.ones(len(valid_actions))
+                for i, v_act in enumerate(valid_actions):
+                    if v_act in mapping:
+                        target_idx = mapping[v_act]
+                        if act_vector[target_idx] > 0:
+                            weights[i] = 10.0 # Heavy bias towards model's choice
+                    elif v_act == 0: # Next Round
+                        if np.sum(act_vector[:5]) == 0:
+                            weights[i] = 5.0 # Bias towards finishing round if no points spent
+                
+                # Sample based on weights
+                weights /= np.sum(weights)
+                move = np.random.choice(valid_actions, p=weights)
+                
+                # 3. Step
+                obs_ext, rew, term, trunc, _ = wrapped_env.step(move)
+                temp_obs = wrapped_env.env.unwrapped.obs.copy() # Sync for next iteration
+                
+                total_reward += rew
+                d_done = term or trunc
+                steps += 1
+                e_starts = np.zeros((1,), dtype=bool)
+                
+            return total_reward
+
+        wrapped_env.rollout = guided_rollout
+        
+        # 5. RESET AFTER WRAPPING (Crucial for ActionBuilder initialization)
         wrapped_env.reset(options={"v": env.unwrapped.V.copy()})
         
         # Setup MCTS Agent with Nasuta's original parameters

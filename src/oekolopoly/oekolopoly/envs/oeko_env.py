@@ -95,7 +95,7 @@ class OekoEnv(gym.Env):
         #                      0   1   2   3   4   5   6    7   8   9
         #                      S  Pr  Ed  Q   PG  En  Pop  Pol  R  AP
         self.Vmin = np.array([ 1,  1,  1,  1,  1,  1,  1, -10,  0,  0])
-        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 30, 36])
+        self.Vmax = np.array([29, 29, 29, 29, 29, 29, 48,  37, 40, 36])
 
         #                      0   1   2   3   4   5
         #                      S  Pr  Ed   Q  PG  SC
@@ -120,7 +120,7 @@ class OekoEnv(gym.Env):
             29,  # 5 Environment
             48,  # 6 Population
             48,  # 7 Politics
-            31,  # 8 Round
+            41,  # 8 Round (Increased for 30+ safety)
             37,  # 9 Action points for next round
         ])
 

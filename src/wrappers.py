@@ -207,7 +207,7 @@ class OekoBoxObservationWrapper(gym.ObservationWrapper):
             29,  # 5 Environment
             48,  # 6 Population
             37,  # 7 Politics
-            30,  # 8 Round
+            40,  # 8 Round (Increased for 30+ safety)
             36,  # 9 Action points for next round
         ])
         self.observation_space = gym.spaces.Box(self.low, self.high)

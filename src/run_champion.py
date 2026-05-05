@@ -4,7 +4,12 @@ import gc
 import logging
 import numpy as np
 import gymnasium as gym
+import io
 from typing import List, Tuple, Optional, Any
+
+# Force UTF-8 for Windows Console (Fixes Tree Rendering)
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Configure Professional Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -104,26 +109,36 @@ def run_sovereign() -> None:
     try:
         model_path = os.path.join(ROOT, "sota_recurrent_champion.zip")
         model = RecurrentPPO.load(model_path, device='cpu')
+        
+        # 1. Create and Wrap Base Env
+        from oekolopoly.env.oeko_env import OekoActionBuilderWrapper
         base_env = gym.make("Oekolopoly-v2")
+        base_env = OekoActionBuilderWrapper(base_env)
+        
         planner = SovereignMCTS(model, num_simulations=3000, render_tree=True)
     
         obs, _ = base_env.reset()
-        V = base_env.unwrapped.V
         
-        for round_num in range(1, 35):
+        # Main Loop: Continue until Game Over
+        while not base_env.unwrapped.done:
             # DEEP THINKING SEARCH
-            final_action = planner.search(base_env)
+            # Planner returns a single action (0-8)
+            action = planner.search(base_env)
             
-            obs, reward, terminated, truncated, info = base_env.step(final_action)
-            V = base_env.unwrapped.V
+            # Step in the wrapped environment
+            obs, reward, terminated, truncated, info = base_env.step(action)
             
-            logger.info(f"Round {int(V[8])}: Env={int(V[5])}, QoL={int(V[3])}, AP={int(V[9])}")
+            # If the action was 'Next Round' (0), log the status
+            if action == 0:
+                V = base_env.unwrapped.V
+                logger.info(f"Round {int(V[8])} Completed: Env={int(V[5])}, QoL={int(V[3])}, AP={int(V[9])}")
                 
             if terminated or truncated:
+                V = base_env.unwrapped.V
                 if V[8] >= 30:
                     logger.info(f"SUCCESS: Round 30 reached. Final AP: {int(V[9])}")
                 else:
-                    logger.warning(f"FAILED at Round {int(V[8])}. Reason: {info.get('done_reason')}")
+                    logger.warning(f"FAILED at Round {int(V[8])}. Reason: {base_env.unwrapped.done_info}")
                 break
                 
     except Exception as e:
