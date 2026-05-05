@@ -124,10 +124,20 @@ class SovereignMCTS:
         )
         
         # Perform the actual deep search
-        # Note: In future versions, we can inject the 'model' here to bias the search
+        import sys
+        import logging
+        m_logger = logging.getLogger("MCTS")
+        m_logger.info("\n" + "="*50)
+        m_logger.info(" [SOVEREIGN DEEP THINKING TREE START]")
+        sys.stdout.flush()
+        
         action = agent.vanilla_mcts_search(num_simulations=self.num_simulations)
         
+        sys.stdout.flush()
+        m_logger.info(" [SOVEREIGN DEEP THINKING TREE END]")
+        m_logger.info("="*50 + "\n")
+        
         if self.render_tree:
-            print(f" [Sovereign Analysis] Search complete. Best Move: {action}")
+            m_logger.info(f" [Sovereign Analysis] Search complete. Best Move: {action}")
             
         return action

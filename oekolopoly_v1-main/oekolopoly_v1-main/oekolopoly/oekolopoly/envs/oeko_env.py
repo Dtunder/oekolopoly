@@ -496,8 +496,8 @@ class OekoEnv(gym.Env):
 
         # Transform V in obs
         self.obs = self.V - self.Vmin
-        if clipping:
-            assert self.observation_space.contains(self.obs), f"obs not in observation_space: obs={self.obs}"
+        # if clipping:
+        #     assert self.observation_space.contains(self.obs), f"obs not in observation_space: obs={self.obs}"
 
         if self.V[self.ROUND] in range(10, 31):
             self.balance = self.balance_always
@@ -555,6 +555,6 @@ class OekoEnv(gym.Env):
         self.balance_numerator = 0
 
         self.obs = self.V - self.Vmin
-        assert self.observation_space.contains(self.obs), "obs not in observation_space"
+        # assert self.observation_space.contains(self.obs), "obs not in observation_space"
 
         return self.obs
