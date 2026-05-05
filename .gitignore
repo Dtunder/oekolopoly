@@ -1,11 +1,7 @@
 __pycache__/
-<<<<<<< HEAD
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-=======
->>>>>>> origin/optuna-hyperparameter-tuning-17920339657952524217
+*.py[cod]
+*$py.class
+.pytest_cache/
+.DS_Store
+*.zip
+!sota_recurrent_champion.zip
