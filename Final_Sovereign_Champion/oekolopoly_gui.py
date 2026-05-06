@@ -46,56 +46,68 @@ class SovereignGuardian:
     def __init__(self, env):
         self.env = env
 
-    def get_final_action(self, avail):
+    def get_final_action(self, raw_action, avail):
+        # MCTS Priority version to match run_champion.py signature!
         V = self.env.unwrapped.V
+        ACT_NAMES = ['SANITATION', 'PRODUCTION', 'EDUCATION', 'QUALITY OF LIFE', 'POPULATION GROWTH']
         dist = np.zeros(5, dtype=int)
-        reasons = []
         
-        # 1. CORE INVESTMENTS
-        if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
-            reasons.append(f"Core: Education yield (+{d}).")
+        current_avail = avail
+        if V[2] < 29 and current_avail > 0:
+            d = min(current_avail, 29 - int(V[2])); dist[2] = int(d); current_avail -= int(d)
             
-        # 2. SURVIVAL TARGETS
         p_target = 13
-        p_dist = p_target - int(V[1])
-        if avail > 0:
-            d = min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
-            reasons.append(f"Adaptive: Target Prod {p_target}.")
-            
-        # 3. ALCHEMIST BURN (Avoid 35)
-        while avail + int(V[9]) > 28:
-            changed = False
-            if int(V[2]) + dist[2] < 29:
-                dist[2] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Education.")
-            elif int(V[3]) + dist[3] < 18:
-                dist[3] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Raising QoL.")
-            elif int(V[4]) + dist[4] < 15:
-                dist[4] += 1; avail -= 1; changed = True
-                reasons.append("Burn: Population.")
-            elif V[5] < 12:
-                if int(V[1]) + dist[1] < 18:
-                    dist[1] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Increasing Prod to balance clean Env.")
-                else: break
-            elif V[5] > 20:
-                if int(V[0]) + dist[0] < 25:
-                    dist[0] += 1; avail -= 1; changed = True
-                    reasons.append("Burn: Cleaning Env.")
-            else:
-                if int(V[1]) + dist[1] > 5:
-                    dist[1] -= 1; avail -= 1; changed = True
-                    reasons.append("Burn: Sabotaging Prod (Safe sink).")
-                else: break
-            if avail + int(V[9]) <= 28: break
+        if V[7] > 20: p_target = 25
+        if V[5] < 12: p_target = 25
 
-        final = [int(dist[0]), int(dist[1]), int(dist[2]), int(dist[3]), int(dist[4]), 0]
-        if V[6] > 32: final[5] = -4; reasons.append("Pop: Control birth.")
-        elif V[6] < 18: final[5] = 5; reasons.append("Pop: Stimulate growth.")
-        return final, " | ".join(reasons)
+        p_dist = p_target - int(V[1])
+        if current_avail > 0:
+            d = min(max(1, current_avail // 2), abs(p_dist))
+            if (V[7] > 20 or V[5] < 12) and p_dist > 0: d = min(current_avail, abs(p_dist))
+            
+            if p_dist < 0: d = min(d, int(V[1]) - 1); dist[1] = -int(d)
+            else: d = min(d, 29 - int(V[1])); dist[1] = int(d)
+            current_avail -= abs(dist[1])
+
+        target_avail = max(1, 28 - int(V[9]))
+        if V[7] < 0: target_avail = max(target_avail, abs(int(V[7])) + 5)
+
+        while current_avail > target_avail:
+            changed = False
+            if int(V[2]) + dist[2] < 29 and current_avail > 0: dist[2] += 1; current_avail -= 1; changed = True
+            elif int(V[3]) + dist[3] < 15 and current_avail > 0 and V[7] < 15 and V[5] >= 14: dist[3] += 1; current_avail -= 1; changed = True
+            elif int(V[4]) + dist[4] < 15 and current_avail > 0 and V[6] < 30: dist[4] += 1; current_avail -= 1; changed = True
+            elif V[5] < 14 and current_avail > 0:
+                if int(V[1]) + dist[1] < 18: dist[1] += 1; current_avail -= 1; changed = True
+                else: break
+            elif V[5] > 20 and current_avail > 0:
+                if int(V[0]) + dist[0] < 25: dist[0] += 1; current_avail -= 1; changed = True
+                else: break
+            else:
+                if int(V[1]) + dist[1] > 5 and dist[1] <= 0 and current_avail > 0 and V[7] <= 20: dist[1] -= 1; current_avail -= 1; changed = True
+                else: break
+            if not changed: break
+
+        for i in range(5):
+            if V[i] + dist[i] > 29: dist[i] -= ((V[i] + dist[i]) - 29)
+            if V[i] + dist[i] < 1: dist[i] += (1 - (V[i] + dist[i]))
+
+        extra = 5
+        if V[6] > 30: extra = 1
+        elif V[6] < 18: extra = 10
+        if V[7] > 20: extra = 9
+
+        # Format for GUI (which doesn't shift by 28 or use raw extra)
+        final_for_gui = [int(dist[0]), int(dist[1]), int(dist[2]), int(dist[3]), int(dist[4]), 0]
+        if V[6] > 32: final_for_gui[5] = -4
+        elif V[6] < 18: final_for_gui[5] = 5
+
+        reasons = []
+        for i in range(5):
+            if dist[i] != 0:
+                reasons.append(f"MCTS Priority: {ACT_NAMES[i]} ({'+' if dist[i] > 0 else ''}{dist[i]}).")
+
+        return final_for_gui, " | ".join(reasons)
 
     def predict_future(self, start_action, steps=5):
         import copy
@@ -105,7 +117,8 @@ class SovereignGuardian:
             # Formulate action for step
             avail = temp_env.unwrapped.V[temp_env.unwrapped.POINTS]
             # Use a slightly simplified version of the logic for speed
-            act, _ = self.get_final_action(avail)
+            # Since GUI lacks access to RL raw_action during fast forward easily, we use zeros
+            act, _ = self.get_final_action(np.zeros(6, dtype=int), avail)
             
             # Step env
             action_for_env = list(act)
@@ -716,7 +729,13 @@ class Game:
 
     def sovereign_move(self) -> None:
         guardian = SovereignGuardian(self.env)
-        a_for_env, reason = guardian.get_final_action(int(self.env.unwrapped.V[self.env.unwrapped.POINTS]))
+
+        # Get raw action from PPO
+        obs = self.env.unwrapped.obs
+        raw_action, _ = self.model.predict(np.array([obs]), deterministic=True)
+        best_raw_action = raw_action[0]
+
+        a_for_env, reason = guardian.get_final_action(best_raw_action, int(self.env.unwrapped.V[self.env.unwrapped.POINTS]))
         self.current_action = a_for_env
         self.available_actionpoints = self.env.unwrapped.V[self.env.unwrapped.POINTS]
         for i in range(5):
