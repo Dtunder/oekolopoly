@@ -9,10 +9,18 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 sys.path.append(os.path.join(ROOT, "oekolopoly"))
 
+# --- NEURAL FIX (Monkey Patch) ---
+import torch.nn as nn
+original_lstm_init = nn.LSTM.__init__
+def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
+    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
+nn.LSTM.__init__ = patched_lstm_init
+
 from gymcts.gymcts_agent import GymctsAgent
 from gymcts.gymcts_action_history_wrapper import ActionHistoryMCTSGymEnvWrapper
-from oekolopoly.env.oeko_env import OekoEnv, OekoActionBuilderWrapper
-from stable_baselines3 import RecurrentPPO
+from oekolopoly.oekolopoly.envs.oeko_env import OekoEnv
+from wrappers import OekoActionBuilderWrapper
+from sb3_contrib import RecurrentPPO
 
 class SovereignJulesTester:
     def __init__(self, model_path):
@@ -36,7 +44,7 @@ class SovereignJulesTester:
         for i in range(trials):
             print(f"\n[TRIAL {i+1}] Launching Sovereign Champion...")
             base_env = OekoEnv(render_mode="ansi")
-            wrapped_env = OekoActionBuilderWrapper(base_env, auxilary_reward=True)
+            wrapped_env = OekoActionBuilderWrapper(base_env)
             env = ActionHistoryMCTSGymEnvWrapper(wrapped_env, action_mask_fn=self.action_mask_fn)
             
             # API Bridges
