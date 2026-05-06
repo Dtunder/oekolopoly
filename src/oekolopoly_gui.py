@@ -70,23 +70,36 @@ class SovereignGuardian:
     def __init__(self, env):
         self.env = env
 
-    def get_final_action(self, avail):
+    def get_final_action(self, mcts_move, avail):
         V = self.env.unwrapped.V
         dist = np.zeros(5, dtype=int)
         reasons = []
         
+        # 0. INTEGRATE MCTS RECOMMENDATION
+        # MCTS move mapping: 1:San+, 2:Prod+, 3:Prod-, 4:Edu+, 5:QoL+, 6:PG+
+        mcts_to_dist = {1: 0, 2: 1, 3: 1, 4: 2, 5: 3, 6: 4}
+        if mcts_move in mcts_to_dist and avail > 0:
+            idx = mcts_to_dist[mcts_move]
+            change = -1 if mcts_move == 3 else 1
+            # Check validity against V bounds
+            if V[idx] + change >= self.env.unwrapped.Vmin[idx] and V[idx] + change <= self.env.unwrapped.Vmax[idx]:
+                dist[idx] += change
+                avail -= 1
+                reasons.append(f"MCTS Priority: {self.env.ACT_NAMES[idx]} ({'+' if change > 0 else ''}{change}).")
+
         # 1. CORE INVESTMENTS
-        if V[2] < 29 and avail > 0:
-            d = min(avail, 29 - int(V[2])); dist[2] = int(d); avail -= dist[2]
+        if V[2] + dist[2] < 29 and avail > 0:
+            d = min(avail, 29 - (int(V[2]) + dist[2])); dist[2] += int(d); avail -= int(d)
             reasons.append(f"Core: Education yield (+{d}).")
             
         # 2. SURVIVAL TARGETS
         p_target = 13
-        p_dist = p_target - int(V[1])
-        if avail > 0:
+        p_dist = p_target - (int(V[1]) + dist[1])
+        if avail > 0 and p_dist != 0:
             d = min(max(1, avail // 2), abs(p_dist))
-            dist[1] = -int(d) if p_dist < 0 else int(d); avail -= abs(dist[1])
-            reasons.append(f"Adaptive: Target Prod {p_target}.")
+            change = -int(d) if p_dist < 0 else int(d)
+            dist[1] += change; avail -= abs(change)
+            reasons.append(f"Adaptive: Target Prod {p_target} ({'+' if change > 0 else ''}{change}).")
             
         # 3. ALCHEMIST BURN (Avoid 35)
         while avail + int(V[9]) > 28:
@@ -114,7 +127,7 @@ class SovereignGuardian:
                     dist[1] -= 1; avail -= 1; changed = True
                     reasons.append("Burn: Sabotaging Prod (Safe sink).")
                 else: break
-            if avail + int(V[9]) <= 28: break
+            if not changed or avail + int(V[9]) <= 28: break
 
         # Transform to GUI Index Space (0-56)
         # Prod (index 1) needs +28, Special (index 5) needs +5

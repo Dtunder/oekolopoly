@@ -13,8 +13,19 @@ import sys
 if NASUTA_ROOT not in sys.path:
     sys.path.insert(0, NASUTA_ROOT)
 
+import torch.nn as nn
+import gymnasium as gym
+sys.modules['gym'] = gym
+
+# WATERPROOF MONKEY PATCH for LSTM (Fixes Numpy 2.0 int64 issues)
+original_lstm_init = nn.LSTM.__init__
+def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
+    return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
+nn.LSTM.__init__ = patched_lstm_init
+
 import oekolopoly.env.oeko_env as oeko_env
 from oekolopoly.env.oeko_env import OekoEnv, OekoActionBuilderWrapper
+sys.modules['oekolopoly.oekolopoly'] = oeko_env
 
 def run_diagnostics():
     print("=" * 60)
