@@ -41,6 +41,9 @@ class MCTSPlanner:
     def _clone_env_state(self, source_env):
         """Creates a shallow/deep copy of the environment state."""
         env_copy = copy.deepcopy(source_env)
+        # Handle wrapped environments
+        if hasattr(env_copy, 'env'):
+            env_copy.env = copy.deepcopy(source_env.env)
         return env_copy
 
     def _evaluate_state(self, obs, lstm_states=None, episode_starts=None):
@@ -75,7 +78,24 @@ class MCTSPlanner:
 
         for _ in range(self.simulations):
             node = root
+
+            # Use DeepCopyMCTSGymEnvWrapper technique
+            import sys
+            try:
+                import oekolopoly.wrappers as wrappers
+                DeepCopyWrapper = wrappers.DeepCopyMCTSGymEnvWrapper
+            except (ImportError, AttributeError):
+                class DeepCopyMCTSGymEnvWrapper(gym.Wrapper):
+                    def __init__(self, env):
+                        super().__init__(env)
+                    def step(self, action):
+                        return self.env.step(action)
+                DeepCopyWrapper = DeepCopyMCTSGymEnvWrapper
+
             sim_env = self._clone_env_state(root_env)
+            if not isinstance(sim_env, DeepCopyWrapper):
+                # Ensure we are simulating on a wrapped version so unwrapped.done doesn't trigger immediately
+                sim_env = DeepCopyWrapper(sim_env)
             lstm_states = root_lstm
             episode_starts = root_episode_starts
 

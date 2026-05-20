@@ -9,7 +9,7 @@ from sb3_contrib import RecurrentPPO
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 
-from run_champion import SovereignGuardian
+from benchmark_sovereign import SovereignGuardian
 
 def calculate_harmony():
     print("--- SOVEREIGN HARMONY EVALUATOR ---")
