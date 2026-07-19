@@ -17,7 +17,7 @@ def patched_lstm_init(self, input_size, hidden_size, *args, **kwargs):
     return original_lstm_init(self, int(input_size), int(hidden_size), *args, **kwargs)
 nn.LSTM.__init__ = patched_lstm_init
 
-ROOT = "G:/Meine Ablage/Antigravity/Oekolopoly/2026-05-01_SOTA_Champion_Build"
+ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ROOT)
 import oekolopoly.oekolopoly
 from sb3_contrib import RecurrentPPO

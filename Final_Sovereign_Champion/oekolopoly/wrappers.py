@@ -378,7 +378,7 @@ class OekoActionBuilderWrapper(gym.ActionWrapper):
             next_round_valid, inc_san_valid, inc_prod_valid, dec_prod_valid,
             inc_edu_valid, inc_qol_valid, inc_pg_valid,
             increase_extra_valid, decrease_extra_valid
-        ])
+        ], dtype=bool)
 
     def action(self, action):
         # This is a bit tricky because gymnasium ActionWrapper expects us to return the action
@@ -403,7 +403,7 @@ class OekoActionBuilderWrapper(gym.ActionWrapper):
                 self._current_action_dict["Quality of Life"],
                 self._current_action_dict["Population Growth"],
                 self._current_action_dict["Population Growth extra"],
-            ])
+            ], dtype=np.int64)
             # The underlying environment adds self.Amin, so we must compensate
             act_to_pass -= self.env.unwrapped.Amin
             
