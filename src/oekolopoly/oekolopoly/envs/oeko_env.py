@@ -23,8 +23,8 @@ class OekoEnv(gym.Env):
 
         - 'balance (always)': the game balance according to the Ökolopoly balance formula, irrespective of round
         - 'balance_numerator (always)': the numerator of this formula
-        - 'balance': `info['balance (always)']` if round \in [10,30], 0 else
-        - 'balance_numerator': `info['balance_numerator (always)']` if round \in [10,30], 0 else
+        - 'balance': `info['balance (always)']` if round \\in [10,30], 0 else
+        - 'balance_numerator': `info['balance_numerator (always)']` if round \\in [10,30], 0 else
         - 'round': the number of rounds played
         - 'done_reason': string with the reason for termination (`None` if not yet terminated)
         - 'done_reason_detail': string with further info
@@ -278,7 +278,7 @@ class OekoEnv(gym.Env):
         extra_points = action[5]
 
         # Update V and boxes
-        box1 = gb.get_box1(self.clip(self.SANITATION))
+        box1 = gb.box1[self.clip(self.SANITATION)]
         if not done:
             self.V[self.ENVIRONMENT] += box1
             if self.V[self.ENVIRONMENT] not in range(1, 30):
@@ -288,7 +288,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.ENVIRONMENT]} {OOR} (1, ..., 29)."
 
         if not done:
-            box2 = gb.get_box2(self.clip(self.SANITATION))
+            box2 = gb.box2[self.clip(self.SANITATION)]
             self.V[self.SANITATION] += box2
             if self.V[self.SANITATION] not in range(1, 30):
                 done = True
@@ -297,7 +297,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.SANITATION]} {OOR} (1, ..., 29)."
 
         if not done:
-            box3 = gb.get_box3(self.clip(self.PRODUCTION))
+            box3 = gb.box3[self.clip(self.PRODUCTION)]
             self.V[self.PRODUCTION] += box3
             if self.V[self.PRODUCTION] not in range(1, 30):
                 done = True
@@ -306,7 +306,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.SANITATION]} {OOR} (1, ..., 29)."
 
         if not done:
-            box4 = gb.get_box4(self.clip(self.PRODUCTION))
+            box4 = gb.box4[self.clip(self.PRODUCTION)]
             self.V[self.ENVIRONMENT] += box4
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
@@ -315,7 +315,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.ENVIRONMENT]} {OOR} (1, ..., 29)."
 
         if not done:
-            box5 = gb.get_box5(self.clip(self.ENVIRONMENT))
+            box5 = gb.box5[self.clip(self.ENVIRONMENT)]
             self.V[self.ENVIRONMENT] += box5
             if self.V[self.ENVIRONMENT] not in range(1, 30):
                 done = True
@@ -324,7 +324,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.ENVIRONMENT]} {OOR} (1, ..., 29)."
 
         if not done:
-            box6 = gb.get_box6(self.clip(self.ENVIRONMENT))
+            box6 = gb.box6[self.clip(self.ENVIRONMENT)]
             self.V[self.QUALITY_OF_LIFE] += box6
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
@@ -333,7 +333,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.QUALITY_OF_LIFE]} {OOR} (1, ..., 29)."
 
         if not done:
-            box7 = gb.get_box7(self.clip(self.EDUCATION))
+            box7 = gb.box7[self.clip(self.EDUCATION)]
             self.V[self.EDUCATION] += box7
             if self.V[self.EDUCATION] not in range(1, 30):
                 done = True
@@ -342,7 +342,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.EDUCATION]} {OOR} (1, ..., 29)."
 
         if not done:
-            box8 = gb.get_box8(self.clip(self.EDUCATION))
+            box8 = gb.box8[self.clip(self.EDUCATION)]
             self.V[self.QUALITY_OF_LIFE] += box8
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
@@ -365,7 +365,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.POPULATION_GROWTH]} {OOR} (1, ..., 29)."
 
         if not done:
-            box10 = gb.get_box10(self.clip(self.QUALITY_OF_LIFE))
+            box10 = gb.box10[self.clip(self.QUALITY_OF_LIFE)]
             self.V[self.QUALITY_OF_LIFE] += box10
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
@@ -374,7 +374,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.QUALITY_OF_LIFE]} {OOR} (1, ..., 29)."
 
         if not done:
-            box11 = gb.get_box11(self.clip(self.QUALITY_OF_LIFE))
+            box11 = gb.box11[self.clip(self.QUALITY_OF_LIFE)]
             self.V[self.POPULATION_GROWTH] += box11
             if self.V[self.POPULATION_GROWTH] not in range(1, 30):
                 done = True
@@ -383,7 +383,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.POPULATION_GROWTH]} {OOR} (1, ..., 29)."
 
         if not done:
-            box12 = gb.get_box12(self.clip(self.QUALITY_OF_LIFE))
+            box12 = gb.box12[self.clip(self.QUALITY_OF_LIFE)]
             self.V[self.POLITICS] += box12
             if self.V[self.POLITICS] not in range(-10, 38):
                 done = True
@@ -392,8 +392,8 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.POLITICS]} {OOR} (-10, ..., 37)."
 
         if not done:
-            box13 = gb.get_box13(self.clip(self.POPULATION_GROWTH))
-            boxW  = gb.get_boxW(self.clip(self.POPULATION))
+            box13 = gb.box13[self.clip(self.POPULATION_GROWTH)]
+            boxW  = gb.boxW[self.clip(self.POPULATION)]
             self.V[self.POPULATION] += box13 * boxW
             if self.V[self.POPULATION] not in range(1, 49):
                 done = True
@@ -402,7 +402,7 @@ class OekoEnv(gym.Env):
                 done_reason_detail = f"{self.V[self.POPULATION]} {OOR} (1, ..., 48)."
 
         if not done:
-            box14 = gb.get_box14(self.clip(self.POPULATION))
+            box14 = gb.box14[self.clip(self.POPULATION)]
             self.V[self.QUALITY_OF_LIFE] += box14
             if self.V[self.QUALITY_OF_LIFE] not in range(1, 30):
                 done = True
@@ -413,8 +413,12 @@ class OekoEnv(gym.Env):
         return self.V, done, done_info, done_reason_detail
 
     def clip(self, s: int):
-        v = min(max(self.V[s], int(self.Vmin[s])), int(self.Vmax[s]))
-        return v
+        v = self.V[s]
+        vmin = self.Vmin[s]
+        if v < vmin: return int(vmin)
+        vmax = self.Vmax[s]
+        if v > vmax: return int(vmax)
+        return int(v)
 
     def step(self, action):
         clipping = True
@@ -434,7 +438,9 @@ class OekoEnv(gym.Env):
         :param clipping: whether to clip the values of ``self.V`` or not
         :return:         ``obs, reward, terminated, truncated, info``
         """
-        assert self.action_space.contains(action), f"Action not in action_space: {action}"
+        for i in range(6):
+            if not (0 <= action[i] < self.action_space.nvec[i]):
+                assert False, f"Action not in action_space: {action}"
 
         # Transform action space
         action = action + self.Amin
@@ -522,11 +528,11 @@ class OekoEnv(gym.Env):
         if self.done:
             self.V[self.POINTS] = 0
         else:
-            boxA = gb.get_boxA(self.clip(self.POPULATION))
-            boxB = gb.get_boxB(self.clip(self.POLITICS))
-            boxC = gb.get_boxC(self.clip(self.PRODUCTION))
-            boxV = gb.get_boxV(self.clip(self.PRODUCTION))
-            boxD = gb.get_boxD(self.clip(self.QUALITY_OF_LIFE))
+            boxA = gb.boxA[self.clip(self.POPULATION)]
+            boxB = gb.boxB[(self.clip(self.POLITICS)) + 10]
+            boxC = gb.boxC[self.clip(self.PRODUCTION)]
+            boxV = gb.boxV[self.clip(self.PRODUCTION)]
+            boxD = gb.boxD[self.clip(self.QUALITY_OF_LIFE)]
 
             self.V[self.POINTS] += boxA * boxV
             self.V[self.POINTS] += boxB
@@ -547,7 +553,7 @@ class OekoEnv(gym.Env):
             self.done_reason_detail = f"{self.V[self.POINTS]} {OOR} (0, ..., 36)."
             if clipping: self.V[self.POINTS] = 36           # /2025/12/11/WK/ Bug fix: added 'if clipping' (see above)
 
-        boxD = gb.get_boxD(self.clip(self.QUALITY_OF_LIFE))
+        boxD = gb.boxD[self.clip(self.QUALITY_OF_LIFE)]
         a = float((boxD * 3 + self.clip(self.POLITICS)) * 10)
         b = float(self.V[self.ROUND] + 3)
         self.balance_numerator_always = int(a)
@@ -571,9 +577,9 @@ class OekoEnv(gym.Env):
             reward = 0
 
         self.prev_result = self.curr_result
-        self.curr_result = self.V.copy()
+        self.curr_result = tuple(self.V)
 
-        self.last_v = self.V.copy()
+        self.last_v = tuple(self.V)
 
         if self.render_mode == "human":
             self.render()
@@ -601,13 +607,13 @@ class OekoEnv(gym.Env):
             self.V = self.get_initial_v()
 
         self.curr_action = np.zeros(self.action_space.shape[0], 'int64')
-        self.curr_result = self.V.copy()
+        self.curr_result = tuple(self.V)
 
         self.done = False
         self.done_info = ''
         self.done_reason_detail = ''
 
-        boxD = gb.get_boxD(self.clip(self.QUALITY_OF_LIFE))
+        boxD = gb.boxD[self.clip(self.QUALITY_OF_LIFE)]
         a = float((boxD * 3 + self.V[self.POLITICS]) * 10)
         b = float(self.V[self.ROUND] + 3)
         self.balance_numerator_always = int(a)
@@ -618,4 +624,4 @@ class OekoEnv(gym.Env):
         self.obs = self.V - self.Vmin
         # assert self.observation_space.contains(self.obs), "obs not in observation_space"
 
-        return self.obs, self.info
+        return self.obs, {'balance (always)': self.balance_always, 'balance_numerator (always)': self.balance_numerator_always, 'balance': self.balance, 'balance_numerator': self.balance_numerator, 'round': self.V[self.ROUND], 'done_reason': self.done_info, 'done_reason_detail': self.done_reason_detail, 'valid_move': True, 'invalid_move_info': ''}
